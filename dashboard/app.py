@@ -7,6 +7,8 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dashboard.views import explorer, waterfall, reconciliation, audit
 
 st.set_page_config(

@@ -94,6 +94,8 @@ def prospectus_to_instrument(data: ProspectusData) -> Instrument:
         mrel_eligible=None,
         bail_in_clause=data.has_bail_in_clause,
         capital_protected=data.is_capital_protected,
+        capital_protection_pct=data.capital_protection_pct,
+        original_amount=data.original_amount,
         underlying_linked=data.is_underlying_linked,
         classification_confidence=data.confidence,
         raw_prospectus_text=None,

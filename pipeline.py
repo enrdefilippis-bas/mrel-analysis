@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import re
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -13,7 +14,7 @@ from scrapers.banco_bpm import (
     download_all_final_terms,
     ProspectusLink,
 )
-from scrapers.borsa_italiana import search_bonds_by_issuer
+from scrapers.borsa_italiana import fetch_all_instrument_details
 from scrapers.pillar3 import download_pillar3_files, parse_pillar3_mrel_tables, parse_capital_instruments_xlsx
 from parsers.pdf_parser import extract_text
 from parsers.prospectus import parse_prospectus
@@ -52,6 +53,8 @@ def init_db(db_path: Path) -> sqlite3.Connection:
             classification_confidence REAL,
             bail_in_clause INTEGER,
             capital_protected INTEGER,
+            capital_protection_pct REAL,
+            original_amount REAL,
             underlying_linked INTEGER,
             prospectus_url TEXT,
             source_pdf TEXT
@@ -64,7 +67,7 @@ def init_db(db_path: Path) -> sqlite3.Connection:
 def save_instrument(conn: sqlite3.Connection, inst: Instrument, mrel_layer: str = "") -> None:
     conn.execute("""
         INSERT OR REPLACE INTO instruments VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     """, (
         inst.isin,
@@ -84,6 +87,8 @@ def save_instrument(conn: sqlite3.Connection, inst: Instrument, mrel_layer: str 
         inst.classification_confidence,
         1 if inst.bail_in_clause else 0 if inst.bail_in_clause is not None else None,
         1 if inst.capital_protected else 0 if inst.capital_protected is not None else None,
+        inst.capital_protection_pct,
+        inst.original_amount,
         1 if inst.underlying_linked else 0 if inst.underlying_linked is not None else None,
         inst.prospectus_url,
         inst.source_pdf,
@@ -124,6 +129,8 @@ def load_instruments(conn: sqlite3.Connection) -> list[Instrument]:
             classification_confidence=data["classification_confidence"] or 1.0,
             bail_in_clause=bool(data["bail_in_clause"]) if data["bail_in_clause"] is not None else None,
             capital_protected=bool(data["capital_protected"]) if data["capital_protected"] is not None else None,
+            capital_protection_pct=data.get("capital_protection_pct"),
+            original_amount=data.get("original_amount"),
             underlying_linked=bool(data["underlying_linked"]) if data["underlying_linked"] is not None else None,
             prospectus_url=data["prospectus_url"],
             source_pdf=data["source_pdf"],
@@ -146,8 +153,22 @@ async def run_pipeline() -> None:
 
     # Step 2: Download Final Terms PDFs
     print("\n[2/6] Downloading Final Terms PDFs...")
-    downloaded = await download_all_final_terms(links, RAW_DIR / "final_terms")
+    ft_dir = RAW_DIR / "final_terms"
+    downloaded = await download_all_final_terms(links, ft_dir)
     print(f"  Downloaded {len(downloaded)} Final Terms PDFs")
+
+    # Fallback: if scraping failed but cached PDFs exist, use them directly
+    if not downloaded and ft_dir.exists():
+        cached_pdfs = list(ft_dir.glob("*.pdf"))
+        if cached_pdfs:
+            print(f"  Using {len(cached_pdfs)} cached PDFs from previous run")
+            isin_re = re.compile(r"(IT|XS)\d{10}")
+            for pdf_path in cached_pdfs:
+                isin_match = isin_re.search(pdf_path.name)
+                isin = isin_match.group(0) if isin_match else None
+                downloaded.append((ProspectusLink(
+                    isin=isin, title=pdf_path.stem, pdf_url="", section="cached", doc_type="cached",
+                ), pdf_path))
 
     # Step 3: Parse and classify
     print("\n[3/6] Parsing prospectuses and classifying instruments...")
@@ -182,24 +203,38 @@ async def run_pipeline() -> None:
 
     print(f"  Classified {classified_count} instruments")
 
-    # Step 4: Enrich with Borsa Italiana data
-    print("\n[4/6] Fetching Borsa Italiana data for outstanding amounts...")
+    # Step 4: Enrich with Borsa Italiana detail pages
+    print("\n[4/6] Fetching Borsa Italiana instrument details...")
     try:
-        borsa_instruments = await search_bonds_by_issuer("BANCO BPM")
-        print(f"  Found {len(borsa_instruments)} instruments on Borsa Italiana")
+        db_isins = [r[0] for r in conn.execute("SELECT isin FROM instruments").fetchall()]
+        try:
+            details = await fetch_all_instrument_details(db_isins)
+        except Exception:
+            details = []
+        print(f"  Found details for {len(details)}/{len(db_isins)} instruments")
 
-        enriched = 0
-        for bi in borsa_instruments:
-            if bi.isin and bi.outstanding_amount:
+        for d in details:
+            updates = {}
+            if d.name:
+                updates["name"] = d.name
+            if d.maturity_date:
+                # Parse DD/MM/YYYY to ISO
+                m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", d.maturity_date)
+                if m:
+                    updates["maturity_date"] = f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
+            if d.coupon_rate:
+                updates["coupon_rate"] = d.coupon_rate
+            if d.market:
+                updates["listing_venue"] = d.market
+            if updates:
+                set_clause = ", ".join(f"{k} = ?" for k in updates)
                 conn.execute(
-                    "UPDATE instruments SET outstanding_amount = ?, listing_venue = ? WHERE isin = ?",
-                    (bi.outstanding_amount, bi.market, bi.isin),
+                    f"UPDATE instruments SET {set_clause} WHERE isin = ?",
+                    (*updates.values(), d.isin),
                 )
-                enriched += 1
         conn.commit()
-        print(f"  Enriched {enriched} instruments with outstanding amounts")
     except Exception as e:
-        print(f"  Warning: Borsa Italiana scraping failed: {e}")
+        print(f"  Warning: Borsa Italiana enrichment failed: {e}")
 
     # Step 5: Download and parse Pillar 3
     print("\n[5/6] Downloading and parsing Pillar 3 data...")
@@ -239,10 +274,14 @@ async def run_pipeline() -> None:
         "Issue Date": i.issue_date,
         "Maturity Date": i.maturity_date,
         "Coupon Type": i.coupon_type.value,
+        "Coupon Rate (%)": i.coupon_rate,
+        "Original Amount (EUR)": i.original_amount,
+        "Capital Protection (%)": i.capital_protection_pct,
         "Outstanding (EUR)": i.outstanding_amount,
         "CRR2 Rank": i.crr2_rank,
         "MREL Eligible": i.mrel_eligible,
         "Eligibility Reason": i.eligibility_reason,
+        "Listing Venue": i.listing_venue,
         "Confidence": i.classification_confidence,
     } for i in instruments])
     df.to_excel(export_path, index=False)

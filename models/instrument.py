@@ -46,6 +46,8 @@ class Instrument:
     classification_confidence: float = 1.0
     bail_in_clause: bool | None = None
     capital_protected: bool | None = None
+    capital_protection_pct: float | None = None  # e.g. 100.0 for 100% protection
+    original_amount: float | None = None  # Original nominal amount issued (EUR)
     underlying_linked: bool | None = None
     raw_prospectus_text: str | None = None
 

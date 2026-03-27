@@ -63,6 +63,23 @@ def test_parse_tier2():
     assert data.has_bail_in_clause is True
 
 
+def test_non_subordinate_clause_not_false_positive():
+    """'non subordinate' in pari passu clauses must NOT trigger is_subordinated."""
+    text = """
+    Codice ISIN: IT0005602849
+    Certificati Banco BPM con Barriera e Sottostante FTSE MIB
+    I Certificati costituiscono obbligazioni dirette, non subordinate e non garantite
+    dell'Emittente e concorrono pari passu con tutte le altre obbligazioni non garantite
+    dell'Emittente. Livello Barriera: 60%
+    Rimborso anticipato automatico condizionato
+    Protezione del capitale a scadenza pari al 100% del Valore Nominale
+    """
+    data = parse_prospectus(text)
+    assert data.is_subordinated is False
+    assert data.has_barrier is True
+    assert data.is_underlying_linked is True
+
+
 def test_parse_structured_note_protected():
     text = """
     ISIN: IT0005697989

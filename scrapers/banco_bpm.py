@@ -1,10 +1,10 @@
 from __future__ import annotations
 import asyncio
+import json
 import re
 from pathlib import Path
 from dataclasses import dataclass
 import httpx
-from bs4 import BeautifulSoup
 
 BASE_URL = "https://gruppo.bancobpm.it"
 
@@ -19,6 +19,9 @@ PILLAR3_XLSX_URL = "https://gruppo.bancobpm.it/media/dlm_uploads/EU_CCA_20241231
 
 ISIN_PATTERN = re.compile(r"\b(IT|XS)\d{10}\b")
 
+# Regex to extract JSON document objects embedded in page source
+_JSON_DOC_RE = re.compile(r'\{[^{}]*"fileUrl"\s*:\s*"[^"]*\.pdf"[^{}]*\}')
+
 
 @dataclass
 class ProspectusLink:
@@ -26,7 +29,7 @@ class ProspectusLink:
     title: str
     pdf_url: str
     section: str
-    doc_type: str
+    doc_type: str  # final_terms, emission_docs, base_prospectus, supplement, other
 
 
 async def fetch_page(client: httpx.AsyncClient, url: str) -> str:
@@ -35,56 +38,55 @@ async def fetch_page(client: httpx.AsyncClient, url: str) -> str:
     return resp.text
 
 
-def extract_pdf_links(html: str, section: str, base_url: str = BASE_URL) -> list[ProspectusLink]:
-    soup = BeautifulSoup(html, "lxml")
+def extract_pdf_links(html: str, section: str) -> list[ProspectusLink]:
+    """Extract PDF links from JSON objects embedded in the Banco BPM IR pages.
+
+    The site renders content via JS using JSON data embedded in the HTML source.
+    Each document is a JSON object with keys: title, fileUrl, year, tax, etc.
+    """
     links = []
 
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        if not href.lower().endswith(".pdf"):
+    for match in _JSON_DOC_RE.finditer(html):
+        try:
+            obj = json.loads(match.group(0))
+        except json.JSONDecodeError:
             continue
 
-        if href.startswith("/"):
-            href = base_url + href
-        elif not href.startswith("http"):
+        pdf_url = obj.get("fileUrl", "")
+        if not pdf_url or not pdf_url.lower().endswith(".pdf"):
             continue
 
-        title = a_tag.get_text(strip=True)
-        parent_text = ""
-        parent = a_tag.find_parent(["div", "li", "td", "tr"])
-        if parent:
-            parent_text = parent.get_text(" ", strip=True)
+        # Normalize relative URLs to absolute
+        if not pdf_url.startswith("http"):
+            if not pdf_url.startswith("/"):
+                pdf_url = "/" + pdf_url
+            pdf_url = BASE_URL + pdf_url
 
-        combined_text = f"{title} {href} {parent_text}"
-        isin_match = ISIN_PATTERN.search(combined_text)
+        title = obj.get("title", "")
+        combined = f"{title} {pdf_url}".lower()
+
+        # Extract ISIN
+        isin_match = ISIN_PATTERN.search(f"{title} {pdf_url}")
         isin = isin_match.group(0) if isin_match else None
 
-        # Classify based on the link's own title and href first,
-        # then fall back to parent context for broader matching.
-        own_text_lower = f"{title} {href}".lower()
-        text_lower = combined_text.lower()
-
-        if any(kw in own_text_lower for kw in ["prospetto di base", "base prospectus"]):
-            doc_type = "base_prospectus"
-        elif any(kw in own_text_lower for kw in ["condizioni definitive", "final terms"]):
+        # Classify document type
+        if any(kw in combined for kw in ["condizioni definitive", "final terms", "cdns", "cd-ns"]):
             doc_type = "final_terms"
-        elif "supplement" in own_text_lower:
-            doc_type = "supplement"
-        elif any(kw in own_text_lower for kw in ["nota informativa", "information note"]):
-            doc_type = "information_note"
-        elif any(kw in text_lower for kw in ["condizioni definitive", "final terms"]):
-            doc_type = "final_terms"
-        elif any(kw in text_lower for kw in ["prospetto di base", "base prospectus"]):
+        elif any(kw in combined for kw in ["documenti emissione", "documenti-emissione"]):
+            doc_type = "emission_docs"
+        elif any(kw in combined for kw in ["prospetto di base", "base prospectus"]):
             doc_type = "base_prospectus"
-        elif "supplement" in text_lower:
+        elif "supplement" in combined:
             doc_type = "supplement"
-        elif any(kw in text_lower for kw in ["nota informativa", "information note"]):
+        elif any(kw in combined for kw in ["nota informativa", "information note"]):
             doc_type = "information_note"
+        elif "prospectus" in combined:
+            doc_type = "prospectus"
         else:
             doc_type = "other"
 
         links.append(ProspectusLink(
-            isin=isin, title=title, pdf_url=href,
+            isin=isin, title=title, pdf_url=pdf_url,
             section=section, doc_type=doc_type,
         ))
 
@@ -121,8 +123,10 @@ async def download_pdf(client: httpx.AsyncClient, url: str, output_dir: Path, fi
 
 
 async def download_all_final_terms(links: list[ProspectusLink], output_dir: Path, max_concurrent: int = 5) -> list[tuple[ProspectusLink, Path]]:
+    """Download Final Terms and Emission Docs PDFs (both contain per-ISIN prospectus data)."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    final_terms = [l for l in links if l.doc_type == "final_terms"]
+    # Include both final_terms and emission_docs — both have per-ISIN instrument details
+    downloadable = [l for l in links if l.doc_type in ("final_terms", "emission_docs", "prospectus") and l.isin]
     results = []
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -138,6 +142,6 @@ async def download_all_final_terms(links: list[ProspectusLink], output_dir: Path
                 except httpx.HTTPError as e:
                     print(f"Error downloading {link.pdf_url}: {e}")
 
-        await asyncio.gather(*[_download(l) for l in final_terms])
+        await asyncio.gather(*[_download(l) for l in downloadable])
 
     return results
