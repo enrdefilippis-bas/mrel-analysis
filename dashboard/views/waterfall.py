@@ -1,73 +1,63 @@
 from __future__ import annotations
 import streamlit as st
 import pandas as pd
-from models.mrel_stack import MRELStack
-from models.instrument import Instrument, InstrumentCategory, CouponType
-from datetime import date
-from dashboard.components.charts import waterfall_chart, category_pie_chart
+from dashboard.components.charts import waterfall_chart
+from dashboard.official_pillar3 import build_official_waterfall, get_normalized_requirement_profile, get_template_coverage
 
 
-def _df_to_instruments(df: pd.DataFrame) -> list[Instrument]:
-    instruments = []
-    for _, row in df.iterrows():
-        try:
-            cat = InstrumentCategory(row["Category"])
-        except ValueError:
-            cat = InstrumentCategory.UNKNOWN
-        try:
-            ct = CouponType(row.get("Coupon Type", "Unknown"))
-        except ValueError:
-            ct = CouponType.UNKNOWN
-
-        mat_date = None
-        if pd.notna(row.get("Maturity Date")):
-            try:
-                mat_date = pd.to_datetime(row["Maturity Date"]).date()
-            except Exception:
-                pass
-
-        issue_date = None
-        if pd.notna(row.get("Issue Date")):
-            try:
-                issue_date = pd.to_datetime(row["Issue Date"]).date()
-            except Exception:
-                pass
-
-        instruments.append(Instrument(
-            isin=row["ISIN"],
-            name=row.get("Name", ""),
-            category=cat,
-            issue_date=issue_date,
-            maturity_date=mat_date,
-            coupon_type=ct,
-            outstanding_amount=row.get("Outstanding (EUR)"),
-            currency="EUR",
-            crr2_rank=row.get("CRR2 Rank"),
-            mrel_eligible=row.get("MREL Eligible"),
-        ))
-    return instruments
+def _fmt_eur(value: float) -> str:
+    return f"EUR {value:,.0f}".replace(",", ".")
 
 
-def render(df: pd.DataFrame, ref_date: date) -> None:
-    st.header("MREL Stack Waterfall")
+def render(entity_name: str, reference_date: str) -> None:
+    st.subheader("MREL Stack Waterfall")
 
-    instruments = _df_to_instruments(df)
-    stack = MRELStack.from_instruments(instruments, ref_date)
+    coverage = get_template_coverage(entity_name, reference_date)
+    if not coverage.get("TLAC1"):
+        st.info(
+            "Official TLAC1 composition is not available for this bank/date. "
+            "The Pillar 3 Official tab still shows the KM2 metrics and any other official tables present."
+        )
+        return
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Subordination Capacity", f"EUR {stack.subordination_capacity:,.0f}")
-    col2.metric("Total MREL Capacity", f"EUR {stack.total_mrel_capacity:,.0f}")
-    col3.metric("Total Excluded", f"EUR {stack.total_excluded:,.0f}")
+    waterfall = build_official_waterfall(entity_name, reference_date)
+    if waterfall is None:
+        st.info("The official waterfall cannot be built for this selection.")
+        return
+    profile = get_normalized_requirement_profile(entity_name, reference_date)
 
-    fig = waterfall_chart(stack)
+    first_req = waterfall.requirement_lines[0]["value"] if waterfall.requirement_lines else None
+    second_req = waterfall.requirement_lines[1]["value"] if len(waterfall.requirement_lines) > 1 else None
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total MREL", _fmt_eur(waterfall.total_mrel))
+    col2.metric("Of Which Subordinated", _fmt_eur(waterfall.subordination_total))
+    col3.metric("TREA", _fmt_eur(waterfall.trea) if waterfall.trea else "N/A")
+    col4.metric("MREL Requirement", _fmt_eur(float(first_req)) if first_req else "N/A")
+
+    if not coverage.get("KM2"):
+        st.info("KM2 is missing for this bank/date, so requirement lines are not shown on the waterfall.")
+    elif second_req:
+        st.caption(
+            f"Official requirement lines: MREL {_fmt_eur(float(first_req))} | "
+            f"Subordination {_fmt_eur(float(second_req))}"
+        )
+        if profile.cbr_disclosed and profile.cbr_trea is not None:
+            st.caption(f"CBR normalized on top of MREL/TREA: {profile.cbr_trea * 100:.2f}%")
+        else:
+            st.caption("CBR not disclosed in the workbook for this bank/date; MREL requirement remains ex-CBR.")
+
+    fig = waterfall_chart(
+        waterfall.components,
+        title=f"Official MREL Stack Waterfall — {entity_name} ({reference_date})",
+        requirement_lines=waterfall.requirement_lines,
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    fig2 = category_pie_chart(df)
-    st.plotly_chart(fig2, use_container_width=True)
-
-    st.subheader("Detailed Breakdown")
-    breakdown = pd.DataFrame([
-        {"Component": k, "Amount (EUR)": v}
-        for k, v in stack.to_dict().items()
-    ])
-    st.dataframe(breakdown, use_container_width=True, hide_index=True)
+    breakdown = pd.DataFrame(waterfall.components).rename(columns={"label": "Component", "value": "Amount (EUR)"})
+    st.dataframe(
+        breakdown[["Component", "Amount (EUR)"]],
+        use_container_width=True,
+        hide_index=True,
+        column_config={"Amount (EUR)": st.column_config.NumberColumn(format="EUR %,.0f")},
+    )

@@ -3,6 +3,21 @@ import streamlit as st
 import pandas as pd
 
 
+def _classify_note_type(name: str) -> str:
+    if pd.isna(name) or name == "Unknown Instrument":
+        return "Unknown (no name available)"
+    n = name.lower()
+    if "mc ind link" in n or "mc  ind" in n:
+        return "Multi Callable Index Linked"
+    if " cc " in f" {n} " or n.startswith("bpm cc ") or n.startswith("cc "):
+        return "Credit Certificate (single stock linked)"
+    if "ep cp" in n or "ep  cp" in n:
+        return "Equity Premium Capital Protected"
+    if "ep " in n and ("eurostoxx" in n or "utilitie" in n):
+        return "Equity Premium (index linked)"
+    return name[:50]
+
+
 def render(df: pd.DataFrame) -> None:
     st.header("Data Quality & Audit")
 
@@ -10,7 +25,44 @@ def render(df: pd.DataFrame) -> None:
     low_conf = df[df["Confidence"] < 0.8].sort_values("Confidence")
     if len(low_conf) > 0:
         st.warning(f"{len(low_conf)} instruments with confidence < 80%")
-        st.dataframe(low_conf, use_container_width=True, hide_index=True)
+
+        st.markdown(
+            "**Why low confidence?** These are Banca Akros certificates classified as "
+            "capital-protected based on instrument name patterns or source-data flags, "
+            "not from verified prospectus text. The capital protection terms should be "
+            "confirmed from the Final Terms / KID to raise confidence."
+        )
+
+        # Group by note type
+        low_conf = low_conf.copy()
+        low_conf["Note Type"] = low_conf["Name"].apply(_classify_note_type)
+        type_summary = (
+            low_conf.groupby("Note Type")
+            .agg(Count=("ISIN", "count"), Total_EUR=("Outstanding (EUR)", "sum"))
+            .sort_values("Total_EUR", ascending=False)
+            .reset_index()
+        )
+        type_summary["Total (EUR M)"] = type_summary["Total_EUR"].apply(
+            lambda v: f"{v / 1e6:,.1f}M".replace(",", ".") if pd.notna(v) else "N/A"
+        )
+        st.dataframe(
+            type_summary[["Note Type", "Count", "Total (EUR M)"]],
+            use_container_width=True, hide_index=True,
+        )
+
+        # Expandable detail per type
+        for note_type in type_summary["Note Type"]:
+            subset = low_conf[low_conf["Note Type"] == note_type]
+            count = len(subset)
+            reason = subset["Eligibility Reason"].iloc[0] if "Eligibility Reason" in subset.columns else ""
+            with st.expander(f"{note_type} ({count} instruments)"):
+                if reason:
+                    st.caption(reason)
+                st.dataframe(
+                    subset[["ISIN", "Name", "Issue Date", "Maturity Date", "Outstanding (EUR)",
+                            "MREL Eligible", "Confidence"]],
+                    use_container_width=True, hide_index=True,
+                )
     else:
         st.success("All instruments classified with high confidence")
 

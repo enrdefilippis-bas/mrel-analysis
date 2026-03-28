@@ -15,6 +15,8 @@ from scrapers.banco_bpm import (
     ProspectusLink,
 )
 from scrapers.borsa_italiana import fetch_all_instrument_details
+from scrapers.esma_firds import fetch_all_firds_records
+from scrapers.tradingview import fetch_all_tv_bonds
 from scrapers.pillar3 import download_pillar3_files, parse_pillar3_mrel_tables, parse_capital_instruments_xlsx
 from parsers.pdf_parser import extract_text
 from parsers.prospectus import parse_prospectus
@@ -145,14 +147,14 @@ async def run_pipeline() -> None:
     print("=" * 60)
 
     # Step 1: Scrape prospectus links
-    print("\n[1/6] Scraping Banco BPM IR for prospectus links...")
+    print("\n[1/8] Scraping Banco BPM IR for prospectus links...")
     links = await scrape_all_prospectus_links()
     print(f"  Found {len(links)} total PDF links")
     final_terms = [l for l in links if l.doc_type == "final_terms"]
     print(f"  Of which {len(final_terms)} are Final Terms")
 
     # Step 2: Download Final Terms PDFs
-    print("\n[2/6] Downloading Final Terms PDFs...")
+    print("\n[2/8] Downloading Final Terms PDFs...")
     ft_dir = RAW_DIR / "final_terms"
     downloaded = await download_all_final_terms(links, ft_dir)
     print(f"  Downloaded {len(downloaded)} Final Terms PDFs")
@@ -171,7 +173,7 @@ async def run_pipeline() -> None:
                 ), pdf_path))
 
     # Step 3: Parse and classify
-    print("\n[3/6] Parsing prospectuses and classifying instruments...")
+    print("\n[3/8] Parsing prospectuses and classifying instruments...")
     db_path = DB_DIR / "mrel.db"
     conn = init_db(db_path)
 
@@ -204,7 +206,7 @@ async def run_pipeline() -> None:
     print(f"  Classified {classified_count} instruments")
 
     # Step 4: Enrich with Borsa Italiana detail pages
-    print("\n[4/6] Fetching Borsa Italiana instrument details...")
+    print("\n[4/8] Fetching Borsa Italiana instrument details...")
     try:
         db_isins = [r[0] for r in conn.execute("SELECT isin FROM instruments").fetchall()]
         try:
@@ -236,34 +238,112 @@ async def run_pipeline() -> None:
     except Exception as e:
         print(f"  Warning: Borsa Italiana enrichment failed: {e}")
 
-    # Step 5: Download and parse Pillar 3
-    print("\n[5/6] Downloading and parsing Pillar 3 data...")
+    # Step 5: Enrich with ESMA FIRDS (issued amounts)
+    print("\n[5/8] Fetching ESMA FIRDS issued amounts...")
+    try:
+        db_isins = [r[0] for r in conn.execute("SELECT isin FROM instruments").fetchall()]
+        firds_records = await fetch_all_firds_records(db_isins)
+        firds_updated = 0
+        for rec in firds_records:
+            if rec.issued_amount:
+                # ESMA FIRDS is authoritative for issued nominal — always overwrite
+                # Also use as outstanding baseline (TradingView overwrites with current outstanding)
+                conn.execute(
+                    "UPDATE instruments SET original_amount = ?, outstanding_amount = ? WHERE isin = ?",
+                    (rec.issued_amount, rec.issued_amount, rec.isin),
+                )
+                firds_updated += 1
+        conn.commit()
+        print(f"  ESMA FIRDS: updated {firds_updated}/{len(db_isins)} instruments with issued amounts")
+    except Exception as e:
+        print(f"  Warning: ESMA FIRDS enrichment failed: {e}")
+
+    # Step 6: Enrich with TradingView (current outstanding amounts)
+    print("\n[6/8] Fetching TradingView outstanding amounts...")
+    try:
+        db_isins = [r[0] for r in conn.execute("SELECT isin FROM instruments").fetchall()]
+        tv_records = await fetch_all_tv_bonds(db_isins)
+        tv_updated = 0
+        for rec in tv_records:
+            if rec.outstanding_amount:
+                # TradingView gives current outstanding (post-buybacks) — always prefer over ESMA
+                conn.execute(
+                    "UPDATE instruments SET outstanding_amount = ? WHERE isin = ?",
+                    (rec.outstanding_amount, rec.isin),
+                )
+                tv_updated += 1
+        conn.commit()
+        print(f"  TradingView: updated {tv_updated}/{len(db_isins)} instruments with outstanding amounts")
+
+        # Report where outstanding differs from issued (buybacks detected)
+        buybacks = conn.execute(
+            "SELECT isin, original_amount, outstanding_amount FROM instruments "
+            "WHERE original_amount IS NOT NULL AND outstanding_amount IS NOT NULL "
+            "AND original_amount != outstanding_amount"
+        ).fetchall()
+        if buybacks:
+            print(f"  Detected {len(buybacks)} instruments with buybacks (outstanding != issued):")
+            for isin, orig, out in buybacks[:5]:
+                print(f"    {isin}: issued={orig:,.0f} outstanding={out:,.0f}")
+    except Exception as e:
+        print(f"  Warning: TradingView enrichment failed: {e}")
+
+    # Step 7: Download and parse Pillar 3
+    print("\n[7/8] Downloading and parsing Pillar 3 data...")
+    from scrapers.pillar3 import load_pillar3_from_json
+    agg_path = PROCESSED_DIR / "pillar3_aggregates.json"
     try:
         pdf_path, xlsx_path = await download_pillar3_files(RAW_DIR / "pillar3")
-        aggregates = parse_pillar3_mrel_tables(pdf_path)
         capital_df = parse_capital_instruments_xlsx(xlsx_path)
-        print(f"  Pillar 3 aggregates extracted")
         print(f"  Capital instruments XLSX: {len(capital_df)} rows")
 
-        agg_path = PROCESSED_DIR / "pillar3_aggregates.json"
-        agg_path.parent.mkdir(parents=True, exist_ok=True)
-        import dataclasses
-        with open(agg_path, "w") as f:
-            json.dump(dataclasses.asdict(aggregates), f, indent=2)
+        # Use pre-extracted JSON if available (manual extraction is more reliable than PDF parsing)
+        if agg_path.exists():
+            aggregates = load_pillar3_from_json(agg_path)
+            print(f"  Loaded Pillar 3 aggregates from {agg_path}")
+        else:
+            aggregates = parse_pillar3_mrel_tables(pdf_path)
+            agg_path.parent.mkdir(parents=True, exist_ok=True)
+            import dataclasses
+            with open(agg_path, "w") as f:
+                json.dump(dataclasses.asdict(aggregates), f, indent=2)
+            print(f"  Pillar 3 aggregates extracted from PDF")
     except Exception as e:
         print(f"  Warning: Pillar 3 processing failed: {e}")
 
-    # Step 6: Compute MREL stack and export
-    print("\n[6/6] Computing MREL stack...")
+    # Step 8: Compute MREL stack and export
+    print("\n[8/8] Computing MREL stack...")
     instruments = load_instruments(conn)
     stack = MRELStack.from_instruments(instruments, REF_DATE)
 
     print("\n" + "=" * 60)
-    print("MREL STACK SUMMARY")
+    print("MREL STACK SUMMARY (Bottom-Up)")
     print("=" * 60)
     for key, val in stack.to_dict().items():
         if val:
             print(f"  {key}: EUR {val:,.0f}")
+
+    # Print Pillar 3 official figures for comparison
+    if agg_path.exists():
+        aggregates = load_pillar3_from_json(agg_path)
+        unit = 1000  # Pillar 3 amounts in thousands EUR
+        print(f"\n{'=' * 60}")
+        print("PILLAR 3 OFFICIAL MREL (EU KM2)")
+        print(f"{'=' * 60}")
+        if aggregates.total_mrel:
+            print(f"  Total MREL:          EUR {aggregates.total_mrel * unit:>16,.0f}")
+        if aggregates.subordination_amount:
+            print(f"  Subordination:       EUR {aggregates.subordination_amount * unit:>16,.0f}")
+        if aggregates.trea:
+            print(f"  TREA:                EUR {aggregates.trea * unit:>16,.0f}")
+        if aggregates.mrel_pct_trea:
+            print(f"  MREL / TREA:         {aggregates.mrel_pct_trea:.2f}%  (req: {aggregates.mrel_trea_req or 0:.2f}%)")
+        if aggregates.mrel_pct_tem:
+            print(f"  MREL / TEM:          {aggregates.mrel_pct_tem:.2f}%  (req: {aggregates.mrel_tem_req or 0:.2f}%)")
+        if aggregates.subordinated_pct_trea:
+            print(f"  Sub / TREA:          {aggregates.subordinated_pct_trea:.2f}%  (req: {aggregates.subordination_trea_req or 0:.2f}%)")
+        if aggregates.subordinated_pct_tem:
+            print(f"  Sub / TEM:           {aggregates.subordinated_pct_tem:.2f}%  (req: {aggregates.subordination_tem_req or 0:.2f}%)")
 
     export_path = PROCESSED_DIR / "mrel_instruments.xlsx"
     export_path.parent.mkdir(parents=True, exist_ok=True)

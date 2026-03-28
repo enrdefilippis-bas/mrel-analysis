@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,19 +13,58 @@ PILLAR3_XLSX_URL = "https://gruppo.bancobpm.it/media/dlm_uploads/EU_CCA_20241231
 
 @dataclass
 class Pillar3Aggregates:
+    # Own funds (EU CC1) — thousands EUR
     cet1: float | None = None
     at1: float | None = None
     tier2: float | None = None
-    senior_non_preferred: float | None = None
-    senior_preferred: float | None = None
     total_own_funds: float | None = None
-    total_eligible_liabilities: float | None = None
+    trea: float | None = None
+    tem: float | None = None
+    # MREL composition (EU TLAC1)
+    subordinated_eligible_liabilities: float | None = None
+    non_subordinated_eligible_liabilities: float | None = None
     total_mrel: float | None = None
     subordination_amount: float | None = None
-    mrel_trea: float | None = None
-    mrel_tem: float | None = None
-    subordination_trea: float | None = None
-    subordination_tem: float | None = None
+    # MREL ratios (EU KM2) — percentages
+    mrel_pct_trea: float | None = None
+    mrel_pct_tem: float | None = None
+    subordinated_pct_trea: float | None = None
+    subordinated_pct_tem: float | None = None
+    # MREL requirements — percentages
+    mrel_trea_req: float | None = None
+    mrel_tem_req: float | None = None
+    subordination_trea_req: float | None = None
+    subordination_tem_req: float | None = None
+
+
+def load_pillar3_from_json(json_path: Path) -> Pillar3Aggregates:
+    """Load pre-extracted Pillar 3 data from JSON."""
+    with open(json_path) as f:
+        data = json.load(f)
+    cc1 = data.get("own_funds_cc1", {})
+    km2 = data.get("mrel_km2", {})
+    tlac1 = data.get("mrel_tlac1_composition", {})
+    reqs = data.get("mrel_requirements", {})
+    return Pillar3Aggregates(
+        cet1=cc1.get("cet1"),
+        at1=cc1.get("at1"),
+        tier2=cc1.get("t2"),
+        total_own_funds=cc1.get("total_capital"),
+        trea=cc1.get("trea"),
+        tem=km2.get("tem"),
+        subordinated_eligible_liabilities=tlac1.get("subordinated_eligible_liabilities"),
+        non_subordinated_eligible_liabilities=tlac1.get("non_subordinated_eligible_liabilities"),
+        total_mrel=km2.get("eligible_own_funds_and_liabilities"),
+        subordination_amount=km2.get("of_which_subordinated"),
+        mrel_pct_trea=km2.get("mrel_pct_trea"),
+        mrel_pct_tem=km2.get("mrel_pct_tem"),
+        subordinated_pct_trea=km2.get("subordinated_pct_trea"),
+        subordinated_pct_tem=km2.get("subordinated_pct_tem"),
+        mrel_trea_req=reqs.get("mrel_trea_pct"),
+        mrel_tem_req=reqs.get("mrel_tem_pct"),
+        subordination_trea_req=reqs.get("subordination_trea_pct"),
+        subordination_tem_req=reqs.get("subordination_tem_pct"),
+    )
 
 
 async def download_pillar3_files(output_dir: Path) -> tuple[Path, Path]:

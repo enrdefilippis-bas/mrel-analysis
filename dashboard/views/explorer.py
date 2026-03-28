@@ -1,6 +1,16 @@
 from __future__ import annotations
+import json
 import streamlit as st
 import pandas as pd
+from pathlib import Path
+
+
+def _load_pillar3() -> dict | None:
+    agg_path = Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "pillar3_aggregates.json"
+    if not agg_path.exists():
+        return None
+    with open(agg_path) as f:
+        return json.load(f)
 
 
 def render(df: pd.DataFrame) -> None:
@@ -31,20 +41,55 @@ def render(df: pd.DataFrame) -> None:
         filtered = filtered[filtered["Listing Venue"] == selected_venue]
     filtered = filtered[filtered["Confidence"] >= confidence_min]
 
-    col1, col2, col3, col4 = st.columns(4)
+    # Pillar 3 reference for category comparison
+    p3 = _load_pillar3()
+    p3_ref = None
+    p3_label = "Pillar 3"
+    p3_note = None
+    if p3 and selected_cat in ("CET1", "AT1", "Tier 2", "Senior Non-Preferred"):
+        cc1 = p3.get("own_funds_cc1", {})
+        tlac1 = p3.get("mrel_tlac1_composition", {})
+        unit = 1000 if p3.get("amounts_unit") == "thousands_eur" else 1
+        if selected_cat == "CET1":
+            p3_ref = cc1.get("cet1", 0) * unit
+            p3_label = "P3 Own Funds (CC1)"
+        elif selected_cat == "AT1":
+            p3_ref = cc1.get("at1", 0) * unit
+            p3_label = "P3 Own Funds (CC1)"
+        elif selected_cat == "Tier 2":
+            # Per-ISIN CCA amounts = t2_before_adjustments; t2 after = own funds after Art.66 deductions
+            p3_ref = cc1.get("t2_before_adjustments", 0) * unit
+            p3_label = "P3 CCA Sum (pre-deductions)"
+            t2_after = cc1.get("t2", 0) * unit
+            deductions = p3_ref - t2_after
+            p3_note = f"T2 own funds after Art. 66 deductions: EUR {t2_after/1e6:,.0f}M (deductions: EUR {deductions/1e6:,.0f}M)".replace(",", ".")
+        elif selected_cat == "Senior Non-Preferred":
+            p3_ref = tlac1.get("subordinated_eligible_liabilities", 0) * unit
+            p3_label = "P3 Sub. Elig. Liab. (TLAC1)"
+
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Instruments", len(filtered))
     col2.metric("MREL Eligible", len(filtered[filtered["MREL Eligible"] == True]))
     total_outstanding = filtered["Outstanding (EUR)"].sum()
-    col3.metric("Total Outstanding", f"EUR {total_outstanding:,.0f}")
+    col3.metric("Total Outstanding", f"EUR {total_outstanding:,.0f}".replace(",", "."))
     eligible_outstanding = filtered[filtered["MREL Eligible"] == True]["Outstanding (EUR)"].sum()
-    col4.metric("Eligible Outstanding", f"EUR {eligible_outstanding:,.0f}")
+    col4.metric("Eligible Outstanding", f"EUR {eligible_outstanding:,.0f}".replace(",", "."))
+    if p3_ref is not None:
+        col5.metric(p3_label, f"EUR {p3_ref:,.0f}".replace(",", "."),
+                     delta=f"{(eligible_outstanding - p3_ref)/1e6:+,.0f}M vs P3".replace(",", "."),
+                     delta_color="off")
+    else:
+        col5.metric("Pillar 3", "N/A")
+
+    if p3_note:
+        st.caption(p3_note)
 
     st.dataframe(
         filtered,
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Outstanding (EUR)": st.column_config.NumberColumn(format="EUR %.0f"),
+            "Outstanding (EUR)": st.column_config.NumberColumn(format="EUR %,.0f"),
             "Confidence": st.column_config.ProgressColumn(min_value=0, max_value=1),
             "MREL Eligible": st.column_config.CheckboxColumn(),
         },

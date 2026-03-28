@@ -1,0 +1,120 @@
+{
+  "reference_date": "2024-12-31",
+  "source": "Pillar 3 Disclosure - Banco BPM - 31.12.2024",
+  "amounts_unit": "thousands_eur",
+
+  "own_funds_cc1": {
+    "cet1_before_adjustments": 12144907,
+    "cet1": 9275322,
+    "at1": 1389745,
+    "tier1": 10665067,
+    "t2_before_adjustments": 2572380,
+    "t2": 1864892,
+    "total_capital": 12529959,
+    "trea": 61639345,
+    "cet1_ratio_pct": 15.05,
+    "tier1_ratio_pct": 17.30,
+    "total_capital_ratio_pct": 20.33
+  },
+
+  "own_funds_movements": {
+    "cet1_opening": 9035519,
+    "cet1_closing": 9275322,
+    "at1_opening": 1389670,
+    "at1_closing": 1389745,
+    "t2_opening": 1699564,
+    "t2_closing": 1864892,
+    "total_own_funds": 12529959
+  },
+
+  "mrel_km2": {
+    "eligible_own_funds_and_liabilities": 22397269,
+    "of_which_subordinated": 15779959,
+    "trea": 61639345,
+    "mrel_pct_trea": 36.34,
+    "subordinated_pct_trea": 25.60,
+    "tem": 204755092,
+    "mrel_pct_tem": 10.94,
+    "subordinated_pct_tem": 7.71,
+    "cet1_available_after_mrel_pct_trea": 7.75
+  },
+
+  "mrel_requirements": {
+    "mrel_trea_pct": 23.31,
+    "mrel_tem_pct": 6.25,
+    "subordination_trea_pct": 17.22,
+    "subordination_tem_pct": 6.25,
+    "combined_buffer_requirement_pct": 3.409,
+    "source": "SRB decision 23 November 2023, for year 2024"
+  },
+
+  "mrel_tlac1_composition": {
+    "cet1": 9275322,
+    "at1": 1389745,
+    "t2": 1864892,
+    "total_own_funds": 12529959,
+    "subordinated_eligible_liabilities": 3250000,
+    "non_subordinated_eligible_liabilities": 6295397,
+    "pre_grandfathering_non_subordinated": 401286,
+    "post_subordination_application": 6696684,
+    "total_eligible_liabilities_before_adjustments": 9946684,
+    "of_which_subordinated_liabilities": 3250000,
+    "total_before_adjustments": 22476643,
+    "deduction_investments_eligible_liabilities": 79374,
+    "total_after_adjustments": 22397269,
+    "of_which_subordinated_total": 15779959
+  },
+
+  "creditor_hierarchy_tlac3a": {
+    "rank_1_equity": 11818360,
+    "rank_2_subordinated_claims": 4707067,
+    "rank_3_subordinated_liabilities_not_own_funds": 0,
+    "rank_4_senior_non_preferred": 4116313,
+    "rank_5_unsecured_claims": 14742918,
+    "rank_6_deposits_and_other_senior": 19711274,
+    "total": 55095931,
+    "potentially_mrel_eligible": {
+      "rank_1_equity": 11818360,
+      "rank_2_subordinated": 3962125,
+      "rank_4_snp": 3250000,
+      "rank_5_unsecured": 6401117,
+      "rank_6_deposits": 295566,
+      "total": 25727168
+    },
+    "perpetual_instruments": 13208105
+  },
+
+  "capital_requirements": {
+    "cet1_srep_requirement_2025_pct": 9.18,
+    "pillar1_minimum_pct": 4.5,
+    "p2r_cet1_pct": 1.266,
+    "capital_conservation_buffer_pct": 2.50,
+    "o_sii_buffer_pct": 0.50,
+    "countercyclical_buffer_pct": 0.038,
+    "systemic_risk_buffer_pct": 0.378,
+    "total_capital_minimum_pct": 10.5,
+    "trea_31_12_2024": 61639345,
+    "tem_31_12_2024": 204755092
+  },
+
+  "resolution_strategy": {
+    "type": "Single Point of Entry (SPE)",
+    "resolution_tool": "Bail-in",
+    "resolution_entity": "Banco BPM S.p.A.",
+    "is_g_sii": false,
+    "is_o_sii": true,
+    "o_sii_class": 2
+  },
+
+  "mrel_surplus": {
+    "mrel_trea_surplus_pct": 13.03,
+    "mrel_trea_surplus_amount": 8031925,
+    "mrel_tem_surplus_pct": 4.69,
+    "mrel_tem_surplus_amount": 9607193,
+    "subordination_trea_surplus_pct": 8.38,
+    "subordination_trea_surplus_amount": 5164949,
+    "subordination_tem_surplus_pct": 1.46,
+    "subordination_tem_surplus_amount": 2990768,
+    "note": "Surplus calculated as actual - requirement (for TREA, excluding CBR from requirement)"
+  }
+}

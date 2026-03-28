@@ -1,7 +1,7 @@
-"""MREL Analysis Dashboard — Banco BPM"""
+"""MREL Analysis Dashboard."""
 from __future__ import annotations
+import html
 import sqlite3
-from datetime import date
 from pathlib import Path
 
 import streamlit as st
@@ -9,19 +9,23 @@ import pandas as pd
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from dashboard.views import explorer, waterfall, reconciliation, audit
+from dashboard import official_pillar3
+from dashboard.views import explorer, waterfall, reconciliation, audit, pillar3
 
 st.set_page_config(
-    page_title="MREL Analysis — Banco BPM",
+    page_title="MREL Analysis Dashboard",
     page_icon="🏦",
     layout="wide",
 )
 
-DB_PATH = Path("data/db/mrel.db")
+DB_PATH = Path(__file__).resolve().parent.parent / "data" / "db" / "mrel.db"
+HOME_PAGE = "home"
+INSTRUMENT_PAGE = "instrument_intelligence"
+OFFICIAL_PAGE = "pillar3_official"
 
 
 @st.cache_data(ttl=300)
-def load_data() -> pd.DataFrame:
+def load_instrument_data() -> pd.DataFrame:
     if not DB_PATH.exists():
         return pd.DataFrame()
     conn = sqlite3.connect(str(DB_PATH))
@@ -57,37 +61,192 @@ def load_data() -> pd.DataFrame:
     return df
 
 
-def main():
-    st.title("MREL Analysis — Banco BPM")
-    st.caption("Reference Date: 31.12.2024 | Prospectus-First Classification per CRR2/BRRD2/SRB")
+def _default_bank(banks: list[str]) -> str | None:
+    if not banks:
+        return None
+    preferred = "BANCO BPM SOCIETA' PER AZIONI"
+    return preferred if preferred in banks else banks[0]
 
-    st.sidebar.title("Navigation")
-    ref_date = st.sidebar.date_input("Reference Date", date(2024, 12, 31))
-    view = st.sidebar.radio(
-        "View",
-        ["Instrument Explorer", "MREL Stack Waterfall", "Reconciliation", "Data Quality & Audit"],
+
+def _set_page(page: str) -> None:
+    st.session_state["current_page"] = page
+    st.rerun()
+
+
+def _render_bank_logo_badge(bank_name: str) -> None:
+    logo_url = official_pillar3.get_bank_logo_url(bank_name)
+    monogram = official_pillar3.get_bank_monogram(bank_name)
+    safe_name = html.escape(bank_name)
+
+    if logo_url:
+        visual = (
+            f'<img src="{html.escape(logo_url)}" alt="{safe_name} logo" '
+            'style="width:42px;height:42px;border-radius:12px;background:#fff;padding:6px;'
+            'border:1px solid rgba(255,255,255,0.12);" />'
+        )
+    else:
+        visual = (
+            '<div style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;'
+            'justify-content:center;font-weight:700;font-size:0.95rem;background:rgba(59,130,246,0.18);'
+            'border:1px solid rgba(96,165,250,0.35);">'
+            f"{html.escape(monogram)}"
+            "</div>"
+        )
+
+    st.markdown(
+        """
+        <div style="margin-top: 1.75rem; padding: 0.55rem 0.75rem; border: 1px solid rgba(255,255,255,0.10);
+             border-radius: 14px; display: flex; align-items: center; gap: 0.75rem; min-height: 74px;">
+            VISUAL
+            <div style="min-width:0;">
+                <div style="font-size: 0.72rem; opacity: 0.72; margin-bottom: 0.1rem;">Selected bank</div>
+                <div style="font-weight: 600; line-height: 1.25;">BANK_NAME</div>
+            </div>
+        </div>
+        """
+        .replace("VISUAL", visual)
+        .replace("BANK_NAME", safe_name),
+        unsafe_allow_html=True,
     )
 
-    if st.sidebar.button("Refresh Data"):
-        st.cache_data.clear()
 
-    df = load_data()
+def _render_top_bar() -> None:
+    nav_col, title_col, action_col = st.columns([1.2, 5, 1])
+    with nav_col:
+        with st.popover("Pages", use_container_width=True):
+            st.caption("Navigate")
+            if st.button("Home", use_container_width=True, key="nav_home"):
+                _set_page(HOME_PAGE)
+            if st.button("Instrument Intelligence", use_container_width=True, key="nav_page_1"):
+                _set_page(INSTRUMENT_PAGE)
+            if st.button("Pillar 3 Official", use_container_width=True, key="nav_page_2"):
+                _set_page(OFFICIAL_PAGE)
 
-    if df.empty:
+    with title_col:
+        st.title("MREL Analysis Dashboard")
+        st.caption(
+            "Homepage + 2 pagine distinte: Instrument Intelligence e Pillar 3 Official."
+        )
+
+    with action_col:
+        if st.button("Refresh", use_container_width=True, key="refresh_cache"):
+            st.cache_data.clear()
+            st.rerun()
+
+
+def _render_home() -> None:
+    st.markdown("### Choose a page")
+    st.caption("Entra nella prima o nella seconda pagina dalla homepage.")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        with st.container(border=True):
+            st.subheader("Instrument Intelligence")
+            st.caption(
+                "Current scope: Banco BPM instrument dataset with explorer, reconciliation, "
+                "and data quality controls."
+            )
+            if st.button("Open Instrument Intelligence", use_container_width=True, key="home_open_page_1"):
+                _set_page(INSTRUMENT_PAGE)
+
+    with col2:
+        with st.container(border=True):
+            st.subheader("Pillar 3 Official")
+            st.caption(
+                "Official KM2, TLAC1, and TLAC3 disclosures from the workbook, across all "
+                "banks and all available dates."
+            )
+            if st.button("Open Pillar 3 Official", use_container_width=True, key="home_open_page_2"):
+                _set_page(OFFICIAL_PAGE)
+
+
+def _render_instrument_page() -> None:
+    st.header("Instrument Intelligence")
+    st.caption("Banco BPM scope for this release.")
+
+    instrument_df = load_instrument_data()
+    if instrument_df.empty:
         st.warning(
-            "No data available. Run the pipeline first:\n\n"
-            "```bash\npython pipeline.py\n```"
+            "Instrument data is not available. Run the pipeline first to enable this page:\n\n"
+            "```bash\npython3 pipeline.py\n```"
         )
         return
 
-    if view == "Instrument Explorer":
-        explorer.render(df)
-    elif view == "MREL Stack Waterfall":
-        waterfall.render(df, ref_date)
-    elif view == "Reconciliation":
-        reconciliation.render(df)
-    elif view == "Data Quality & Audit":
-        audit.render(df)
+    tab_explorer, tab_recon, tab_audit = st.tabs(
+        ["Instrument Explorer", "Reconciliation", "Data Quality & Audit"]
+    )
+    with tab_explorer:
+        explorer.render(instrument_df)
+    with tab_recon:
+        reconciliation.render(instrument_df)
+    with tab_audit:
+        audit.render(instrument_df)
+
+
+def _render_official_page() -> None:
+    st.header("Pillar 3 Official")
+
+    banks = official_pillar3.list_official_banks()
+    if not banks:
+        st.warning("The official Pillar 3 workbook is not available.")
+        return
+
+    default_bank = _default_bank(banks)
+    filter_col1, logo_col, filter_col2 = st.columns([2.2, 1.4, 1.4])
+    with filter_col1:
+        selected_bank = st.selectbox(
+            "Bank",
+            banks,
+            index=banks.index(default_bank) if default_bank else 0,
+            key="official_bank",
+        )
+    with logo_col:
+        _render_bank_logo_badge(selected_bank)
+
+    bank_dates = official_pillar3.list_bank_dates(selected_bank)
+    if not bank_dates:
+        st.warning("No reference dates are available for the selected bank.")
+        return
+
+    with filter_col2:
+        selected_date = st.selectbox(
+            "Reference Date",
+            bank_dates,
+            index=len(bank_dates) - 1,
+            key="official_reference_date",
+        )
+
+    coverage = official_pillar3.get_template_coverage(selected_bank, selected_date)
+    coverage_labels = [name for name, is_available in coverage.items() if is_available]
+    missing_labels = [name for name, is_available in coverage.items() if not is_available]
+    st.caption(
+        f"Coverage for {selected_bank} on {selected_date}: "
+        f"{', '.join(coverage_labels) if coverage_labels else 'no official templates'}"
+        + (f" | Missing: {', '.join(missing_labels)}" if missing_labels else "")
+    )
+
+    official_tab1, official_tab2 = st.tabs(["MREL Stack Waterfall", "Pillar 3 Official"])
+    with official_tab1:
+        waterfall.render(selected_bank, selected_date)
+    with official_tab2:
+        pillar3.render(selected_bank, selected_date)
+
+
+def main():
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = HOME_PAGE
+
+    _render_top_bar()
+    st.divider()
+
+    current_page = st.session_state["current_page"]
+    if current_page == INSTRUMENT_PAGE:
+        _render_instrument_page()
+    elif current_page == OFFICIAL_PAGE:
+        _render_official_page()
+    else:
+        _render_home()
 
 
 if __name__ == "__main__":

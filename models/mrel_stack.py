@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 from dataclasses import dataclass
 from datetime import date
 from models.instrument import Instrument, InstrumentCategory
@@ -41,7 +42,12 @@ class MRELStack:
         )
 
     @classmethod
-    def from_instruments(cls, instruments: list[Instrument], ref_date: date) -> MRELStack:
+    def from_instruments(
+        cls,
+        instruments: list[Instrument],
+        ref_date: date,
+        pillar3_overrides: dict[str, float] | None = None,
+    ) -> MRELStack:
         stack = cls(ref_date=ref_date)
         category_map = {
             InstrumentCategory.CET1: "cet1",
@@ -52,13 +58,24 @@ class MRELStack:
             InstrumentCategory.STRUCTURED_NOTE_PROTECTED: "structured_notes_protected",
         }
 
+        # Categories overridden by Pillar 3 — skip bottom-up for these
+        overridden_attrs = set()
+        if pillar3_overrides:
+            for attr, val in pillar3_overrides.items():
+                setattr(stack, attr, val)
+                overridden_attrs.add(attr)
+
         for inst in instruments:
-            amount = inst.outstanding_amount or 0.0
+            raw = inst.outstanding_amount
+            amount = 0.0 if raw is None or (isinstance(raw, float) and math.isnan(raw)) else raw
             result = assess_mrel_eligibility(inst, ref_date)
 
-            if result.eligible:
+            # DB override: if mrel_eligible is explicitly False, treat as ineligible
+            eligible = result.eligible if inst.mrel_eligible is None else bool(inst.mrel_eligible)
+
+            if eligible:
                 attr = category_map.get(inst.category)
-                if attr:
+                if attr and attr not in overridden_attrs:
                     setattr(stack, attr, getattr(stack, attr) + amount)
             else:
                 if inst.category == InstrumentCategory.CERTIFICATE:
