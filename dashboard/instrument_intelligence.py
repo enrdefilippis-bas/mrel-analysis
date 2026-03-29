@@ -26,6 +26,20 @@ KNOWN_INSTRUMENT_OVERRIDES = {
         "MREL Layer": "non_subordination",
         "Eligibility Reason": "Senior Preferred: counts towards total MREL, not subordination.",
     },
+    "IT0005632267": {
+        "Name": "BANCO BPM 3.375% Senior Preferred Notes due 21 January 2030",
+        "Category": "Senior Preferred",
+        "Issue Date": "2025-01-21",
+        "MREL Layer": "total",
+        "Eligibility Reason": "Senior Preferred: counts towards total MREL only.",
+    },
+    "IT0005675126": {
+        "Name": "BANCO BPM 3.125% Green Senior Non-Preferred Notes due 23 October 2031",
+        "Category": "Senior Non-Preferred",
+        "Issue Date": "2025-10-23",
+        "MREL Layer": "Senior Non-Preferred",
+        "Eligibility Reason": "Senior Non-Preferred: counts towards subordination and total MREL.",
+    },
 }
 
 
