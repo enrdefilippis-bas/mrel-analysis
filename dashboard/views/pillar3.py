@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from dashboard.official_pillar3 import (
+    CBRResearchRecord,
+    NormalizedRequirementProfile,
     build_tlac3_rank_table,
     describe_cbr_treatment,
     get_cbr_research_record,
@@ -36,6 +38,157 @@ def _fmt_pct(decimal_value: float | None) -> str:
     if decimal_value is None:
         return "N/A"
     return f"{decimal_value * 100:.2f}%"
+
+
+def _eur_compact(value: float | None) -> str:
+    """Format a EUR amount (in thousands) as a compact readable string."""
+    if value is None:
+        return "N/A"
+    abs_val = abs(value)
+    if abs_val >= 1_000_000:
+        return f"EUR {value / 1_000_000:.1f}bn"
+    if abs_val >= 1_000:
+        return f"EUR {value / 1_000:.0f}m"
+    return f"EUR {value:.0f}k"
+
+
+def _build_qualitative_bullets(
+    profile: NormalizedRequirementProfile,
+    km2: pd.DataFrame,
+    tlac1: pd.DataFrame,
+    cbr_research: CBRResearchRecord | None,
+) -> list[str]:
+    bullets: list[str] = []
+
+    trea = _first_numeric(km2, "0030")
+
+    # --- MREL / TREA headroom ---
+    if profile.actual_mrel_trea is not None and profile.binding_mrel_trea is not None:
+        buffer = profile.actual_mrel_trea - profile.binding_mrel_trea
+        bps = buffer * 10_000
+        req_label = "binding (incl. CBR)" if profile.cbr_disclosed else "stated"
+        buffer_eur = trea * buffer if trea else None
+        headroom_str = f" ({_eur_compact(buffer_eur)} of headroom)" if buffer_eur is not None else ""
+        if buffer >= 0:
+            quality = "substantial" if bps > 500 else ("adequate" if bps > 200 else "limited")
+            bullets.append(
+                f"**MREL / TREA** is {_fmt_pct(profile.actual_mrel_trea)}, {bps:+.0f} bps above the "
+                f"{req_label} requirement of {_fmt_pct(profile.binding_mrel_trea)}{headroom_str} — {quality} cushion."
+            )
+        else:
+            bullets.append(
+                f"**MREL / TREA** of {_fmt_pct(profile.actual_mrel_trea)} is {abs(bps):.0f} bps **below** "
+                f"the {req_label} requirement of {_fmt_pct(profile.binding_mrel_trea)}."
+            )
+
+    # --- Subordination / TREA headroom ---
+    if profile.actual_subordination_trea is not None and profile.binding_subordination_trea is not None:
+        sub_buf = profile.actual_subordination_trea - profile.binding_subordination_trea
+        sub_bps = sub_buf * 10_000
+        req_label = "binding (incl. CBR)" if profile.cbr_disclosed else "stated"
+        sub_buf_eur = trea * sub_buf if trea else None
+        headroom_str = f" ({_eur_compact(sub_buf_eur)} of headroom)" if sub_buf_eur is not None else ""
+        if sub_buf >= 0:
+            quality = "substantial" if sub_bps > 500 else ("adequate" if sub_bps > 200 else "limited")
+            bullets.append(
+                f"**Subordination / TREA** is {_fmt_pct(profile.actual_subordination_trea)}, {sub_bps:+.0f} bps above "
+                f"the {req_label} requirement of {_fmt_pct(profile.binding_subordination_trea)}{headroom_str} — {quality} cushion."
+            )
+        else:
+            bullets.append(
+                f"**Subordination / TREA** of {_fmt_pct(profile.actual_subordination_trea)} is {abs(sub_bps):.0f} bps "
+                f"**below** the {req_label} requirement of {_fmt_pct(profile.binding_subordination_trea)}."
+            )
+
+    # --- CBR treatment ---
+    if profile.cbr_disclosed and profile.cbr_trea is not None:
+        ex_cbr_note = ""
+        if profile.requirement_mrel_trea is not None:
+            ex_cbr_note = f"; ex-CBR SRB floor is {_fmt_pct(profile.requirement_mrel_trea)} TREA"
+        bullets.append(
+            f"**Combined Buffer Requirement** of {_fmt_pct(profile.cbr_trea)} TREA is additive to the MREL "
+            f"requirement{ex_cbr_note}."
+        )
+    elif cbr_research is not None and cbr_research.cbr_treatment == "included":
+        bullets.append("**CBR** is already embedded in the disclosed MREL requirement (not additive).")
+
+    # --- TLAC1 composition ---
+    if not tlac1.empty:
+        cet1 = _first_numeric(tlac1, "0010") or 0.0
+        at1 = _first_numeric(tlac1, "0020") or 0.0
+        t2 = _first_numeric(tlac1, "0060") or 0.0
+        own_funds_raw = _first_numeric(tlac1, "0090")
+        own_funds = own_funds_raw if own_funds_raw is not None else cet1 + at1 + t2
+        sub_el = _sum_numeric(tlac1, ["0100", "0110", "0120", "0130"])
+        non_sub = _first_numeric(tlac1, "0160") or 0.0
+        total = _first_numeric(tlac1, "0250")
+
+        if total and total > 0:
+            of_pct = own_funds / total
+            sub_el_pct = sub_el / total
+            non_sub_pct = non_sub / total
+            bullets.append(
+                f"**MREL composition**: own funds {_fmt_pct(of_pct)} ({_eur_compact(own_funds)}), "
+                f"subordinated eligible liabilities {_fmt_pct(sub_el_pct)} ({_eur_compact(sub_el)}), "
+                f"non-subordinated eligible liabilities {_fmt_pct(non_sub_pct)} ({_eur_compact(non_sub)})."
+            )
+
+            # Does own funds alone cover the subordination requirement?
+            if profile.binding_subordination_trea is not None and trea:
+                sub_req_eur = profile.binding_subordination_trea * trea
+                if own_funds >= sub_req_eur:
+                    bullets.append(
+                        f"Own funds ({_eur_compact(own_funds)}) alone cover the subordination requirement "
+                        f"({_eur_compact(sub_req_eur)}); subordinated eligible liabilities provide additional buffer."
+                    )
+                else:
+                    gap = sub_req_eur - own_funds
+                    bullets.append(
+                        f"Own funds ({_eur_compact(own_funds)}) fall {_eur_compact(gap)} short of the subordination "
+                        f"requirement ({_eur_compact(sub_req_eur)}); {_eur_compact(sub_el)} of subordinated eligible "
+                        f"liabilities bridges the gap."
+                    )
+
+            # Non-sub materiality
+            if non_sub > 0 and non_sub_pct > 0.15:
+                bullets.append(
+                    f"Non-subordinated eligible liabilities represent {_fmt_pct(non_sub_pct)} of total MREL "
+                    f"— a meaningful share that is sensitive to BRRD2 grandfathering eligibility criteria."
+                )
+
+    # --- Binding metric: TREA vs TEM ---
+    if (
+        profile.actual_mrel_trea is not None
+        and profile.actual_mrel_tem is not None
+        and profile.binding_mrel_trea is not None
+        and profile.requirement_mrel_tem is not None
+        and profile.binding_mrel_trea > 0
+        and profile.requirement_mrel_tem > 0
+    ):
+        trea_cov = profile.actual_mrel_trea / profile.binding_mrel_trea
+        tem_cov = profile.actual_mrel_tem / profile.requirement_mrel_tem
+        binding = "TREA" if trea_cov <= tem_cov else "TEM"
+        slack = "TEM" if binding == "TREA" else "TREA"
+        bullets.append(
+            f"**Binding metric**: {binding} is the tighter constraint (MREL covers {trea_cov:.2f}x TREA "
+            f"requirement vs {tem_cov:.2f}x TEM requirement); {slack} provides more headroom."
+        )
+
+    return bullets
+
+
+def _render_qualitative_commentary(
+    profile: NormalizedRequirementProfile,
+    km2: pd.DataFrame,
+    tlac1: pd.DataFrame,
+    cbr_research: CBRResearchRecord | None,
+) -> None:
+    bullets = _build_qualitative_bullets(profile, km2, tlac1, cbr_research)
+    if not bullets:
+        return
+    with st.expander("Qualitative Analysis", expanded=True):
+        for b in bullets:
+            st.markdown(f"- {b}")
 
 
 def render(entity_name: str, reference_date: str) -> None:
@@ -153,6 +306,7 @@ def render(entity_name: str, reference_date: str) -> None:
             height=360,
         )
         st.plotly_chart(fig, use_container_width=True)
+        _render_qualitative_commentary(profile, km2, tlac1, cbr_research)
     else:
         st.info("KM2 metrics are not available for this bank/date.")
 
