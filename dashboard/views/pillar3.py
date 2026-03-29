@@ -119,7 +119,7 @@ def render(entity_name: str, reference_date: str) -> None:
                     "Metric": entry["Metric"],
                     "Actual": _fmt_pct(actual),
                     "Requirement (Normalized)": _fmt_pct(requirement),
-                    "Requirement (Raw Ex-CBR)": _fmt_pct(entry["Requirement Raw"]),
+                    "Requirement (Official Raw)": _fmt_pct(entry["Requirement Raw"]),
                     "Buffer": _fmt_pct(buffer),
                     "Buffer (EUR)": _fmt_eur(buffer_eur),
                 }

@@ -145,6 +145,9 @@ class CBRResearchRecord:
     evidence_keyword: str | None
     evidence_quote: str | None
     match_count: int | None
+    pdf_path: str | None
+    text_path: str | None
+    cbr_trea: float | None
     note: str | None
 
 
@@ -204,6 +207,49 @@ def _clean_optional_int(value: object) -> int | None:
     if pd.isna(value):
         return None
     return int(value)
+
+
+def _parse_percentage_token(token: str) -> float | None:
+    normalized = token.strip()
+    if "," in normalized and "." in normalized:
+        normalized = normalized.replace(".", "").replace(",", ".")
+    elif "," in normalized:
+        normalized = normalized.replace(",", ".")
+    try:
+        value = float(normalized) / 100.0
+    except ValueError:
+        return None
+    if 0 <= value <= 0.10:
+        return value
+    return None
+
+
+def _extract_cbr_ratio_from_text(text: str) -> float | None:
+    patterns = (
+        re.compile(
+            r"requisito combinato di riserva di capitale(?:\s*\(%\))?[^%\n]{0,120}?([0-9]+(?:[.,][0-9]+)?)%",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"combined buffer requirement[^%\n]{0,120}?([0-9]+(?:[.,][0-9]+)?)%",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"riserva combinata di capitale[^%\n]{0,120}?([0-9]+(?:[.,][0-9]+)?)%",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\bcbr\b[^%\n]{0,120}?([0-9]+(?:[.,][0-9]+)?)%",
+            re.IGNORECASE,
+        ),
+    )
+
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            candidate = _parse_percentage_token(match.group(1))
+            if candidate is not None:
+                return candidate
+    return None
 
 
 def _read_official_workbook(path: Path) -> pd.DataFrame:
@@ -344,6 +390,17 @@ def get_cbr_research_record(
     if treatment is None:
         return None
 
+    pdf_path = _clean_optional_text(row.get("pdf_path"))
+    text_path = _clean_optional_text(row.get("text_path"))
+    cbr_ratio = None
+    evidence_quote = _clean_optional_text(row.get("evidence_quote"))
+    if treatment in {"on_top", "included", "unclear"} and evidence_quote:
+        cbr_ratio = _extract_cbr_ratio_from_text(evidence_quote)
+    if cbr_ratio is None and treatment in {"on_top", "included", "unclear"} and text_path:
+        resolved_text_path = (Path(__file__).resolve().parent.parent / text_path).resolve()
+        if resolved_text_path.exists():
+            cbr_ratio = _extract_cbr_ratio_from_text(resolved_text_path.read_text())
+
     return CBRResearchRecord(
         entity_name=entity_name,
         reference_date=reference_date,
@@ -353,8 +410,11 @@ def get_cbr_research_record(
         source_type=_clean_optional_text(row.get("source_type")),
         evidence_page=_clean_optional_int(row.get("evidence_page")),
         evidence_keyword=_clean_optional_text(row.get("evidence_keyword")),
-        evidence_quote=_clean_optional_text(row.get("evidence_quote")),
+        evidence_quote=evidence_quote,
         match_count=_clean_optional_int(row.get("match_count")),
+        pdf_path=pdf_path,
+        text_path=text_path,
+        cbr_trea=cbr_ratio,
         note=_clean_optional_text(row.get("note")),
     )
 
@@ -494,6 +554,7 @@ def get_normalized_requirement_profile(
 ) -> NormalizedRequirementProfile:
     km2 = get_template_snapshot(entity_name, reference_date, "KM2", path_str)
     tlac1 = get_template_snapshot(entity_name, reference_date, "TLAC1", path_str)
+    cbr_research = get_cbr_research_record(entity_name, reference_date)
 
     total_mrel_amount = _numeric_first(km2, "0010")
     subordinated_amount = _numeric_first(km2, "0020")
@@ -517,7 +578,18 @@ def get_normalized_requirement_profile(
 
     cbr_raw = _numeric_first(tlac1[tlac1["column"] == "0020"], "0340")
     cbr_trea, scale_cbr = _normalize_ratio_general(cbr_raw, upper_bound=0.25)
-    binding_mrel_trea = (req_mrel_trea + cbr_trea) if req_mrel_trea is not None and cbr_trea is not None else req_mrel_trea
+    cbr_source_note: str | None = None
+    if cbr_trea is not None:
+        cbr_source_note = "CBR/TREA sourced from official TLAC1 workbook row 0340"
+    elif cbr_research is not None and cbr_research.cbr_trea is not None:
+        cbr_trea = cbr_research.cbr_trea
+        scale_cbr = 1.0
+        cbr_source_note = "CBR/TREA sourced from reviewed Pillar 3 PDF evidence"
+
+    cbr_on_top = cbr_raw is not None or (cbr_research is not None and cbr_research.cbr_treatment == "on_top")
+    binding_mrel_trea = req_mrel_trea
+    if cbr_on_top and req_mrel_trea is not None and cbr_trea is not None:
+        binding_mrel_trea = req_mrel_trea + cbr_trea
 
     notes: list[str] = []
     scale_map = {
@@ -534,6 +606,8 @@ def get_normalized_requirement_profile(
     for label, scale in scale_map.items():
         if scale and scale != 1.0:
             notes.append(f"{label} rescaled by /{scale:,.0f}".replace(",", "."))
+    if cbr_source_note:
+        notes.append(cbr_source_note)
 
     return NormalizedRequirementProfile(
         actual_mrel_trea=actual_mrel_trea,

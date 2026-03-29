@@ -132,6 +132,11 @@ def test_requirement_normalization_handles_scale_and_cbr():
     assert sabadell.cbr_trea is None
     assert sabadell.binding_mrel_trea == pytest.approx(0.2531)
 
+    banco_bpm_june = get_normalized_requirement_profile("BANCO BPM SOCIETA' PER AZIONI", "2025-06-30", str(WORKBOOK_PATH))
+    assert banco_bpm_june.requirement_mrel_trea == pytest.approx(0.2266)
+    assert banco_bpm_june.cbr_trea == pytest.approx(0.0374)
+    assert banco_bpm_june.binding_mrel_trea == pytest.approx(0.2640)
+
     santander = get_normalized_requirement_profile("Banco Santander, S.A.", "2025-12-31", str(WORKBOOK_PATH))
     assert santander.cbr_disclosed is True
     assert santander.cbr_trea == pytest.approx(0.0442)
@@ -154,6 +159,17 @@ def test_requirement_normalization_handles_scale_and_cbr():
     intesa = get_normalized_requirement_profile("Intesa Sanpaolo S.p.A.", "2025-06-30", str(WORKBOOK_PATH))
     assert intesa.actual_mrel_trea == pytest.approx(0.3658)
     assert intesa.requirement_mrel_trea == pytest.approx(0.21)
+    assert intesa.cbr_trea == pytest.approx(0.0448)
+    assert intesa.binding_mrel_trea == pytest.approx(0.2548)
+
+    iccrea = get_normalized_requirement_profile(
+        "ICCREA BANCA S.P.A. - ISTITUTO CENTRALE DEL CREDITO COOPERATIVO (IN FORMA ABBREVIATA: ICCREA BANCA S.P.A.)",
+        "2025-06-30",
+        str(WORKBOOK_PATH),
+    )
+    assert iccrea.cbr_trea == pytest.approx(0.0359)
+    assert iccrea.requirement_mrel_trea == pytest.approx(0.2166)
+    assert iccrea.binding_mrel_trea == pytest.approx(0.2166)
 
     bper = get_normalized_requirement_profile("BPER Banca S.p.A.", "2025-06-30", str(WORKBOOK_PATH))
     assert bper.actual_mrel_trea == pytest.approx(0.3433)
@@ -165,7 +181,13 @@ def test_cbr_research_record_exposes_banco_bpm_on_top_evidence():
     assert bpm is not None
     assert bpm.cbr_treatment == "on_top"
     assert bpm.evidence_page == 21
+    assert bpm.cbr_trea == pytest.approx(0.0374)
     assert bpm.source_url is not None
     assert "netto del requisito combinato di riserva di capitale" in (bpm.evidence_quote or "").lower()
 
     assert get_cbr_research_record("BANCO BPM SOCIETA' PER AZIONI", "2025-12-31") is None
+
+    bper = get_cbr_research_record("BPER Banca S.p.A.", "2025-06-30")
+    assert bper is not None
+    assert bper.cbr_treatment == "not_found"
+    assert bper.cbr_trea is None
