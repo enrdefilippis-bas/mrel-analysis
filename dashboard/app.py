@@ -9,7 +9,7 @@ import pandas as pd
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from dashboard import instrument_intelligence, official_pillar3
+from dashboard import official_pillar3
 from dashboard.views import explorer, waterfall, reconciliation, audit, pillar3
 
 st.set_page_config(
@@ -41,7 +41,6 @@ def load_instrument_data() -> pd.DataFrame:
         "coupon_type": "Coupon Type",
         "coupon_rate": "Coupon Rate",
         "outstanding_amount": "Outstanding (EUR)",
-        "original_amount": "Original Amount (EUR)",
         "currency": "Currency",
         "crr2_rank": "CRR2 Rank",
         "listing_venue": "Listing Venue",
@@ -206,26 +205,15 @@ def _render_instrument_page() -> None:
         )
         return
 
-    active_today_df = instrument_intelligence.build_active_today_view(instrument_df)
-    reconciliation_df = instrument_intelligence.build_reference_snapshot(
-        instrument_df,
-        instrument_intelligence.RECONCILIATION_REFERENCE_DATE,
-    )
-
     tab_explorer, tab_recon, tab_audit = st.tabs(
         ["Instrument Explorer", "Reconciliation", "Data Quality & Audit"]
     )
     with tab_explorer:
-        st.caption(
-            "Rows include only instruments in being today. The table shows quarterly outstanding "
-            "snapshots for 31-03-2025, 30-06-2025, 30-09-2025, plus the current amount."
-        )
-        explorer.render(active_today_df)
+        explorer.render(instrument_df)
     with tab_recon:
-        st.caption("Reconciliation remains anchored to the latest official Pillar 3 reference date: 31-12-2024.")
-        reconciliation.render(reconciliation_df)
+        reconciliation.render(instrument_df)
     with tab_audit:
-        audit.render(active_today_df)
+        audit.render(instrument_df)
 
 
 def _render_official_page() -> None:

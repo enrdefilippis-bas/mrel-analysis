@@ -2,8 +2,6 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 
-from dashboard.instrument_intelligence import CURRENT_OUTSTANDING_COLUMN
-
 
 def _classify_note_type(name: str) -> str:
     if pd.isna(name) or name == "Unknown Instrument":
@@ -22,7 +20,6 @@ def _classify_note_type(name: str) -> str:
 
 def render(df: pd.DataFrame) -> None:
     st.header("Data Quality & Audit")
-    current_amount_col = CURRENT_OUTSTANDING_COLUMN if CURRENT_OUTSTANDING_COLUMN in df.columns else "Outstanding (EUR)"
 
     st.subheader("Low Confidence Classifications")
     low_conf = df[df["Confidence"] < 0.8].sort_values("Confidence")
@@ -41,7 +38,7 @@ def render(df: pd.DataFrame) -> None:
         low_conf["Note Type"] = low_conf["Name"].apply(_classify_note_type)
         type_summary = (
             low_conf.groupby("Note Type")
-            .agg(Count=("ISIN", "count"), Total_EUR=(current_amount_col, "sum"))
+            .agg(Count=("ISIN", "count"), Total_EUR=("Outstanding (EUR)", "sum"))
             .sort_values("Total_EUR", ascending=False)
             .reset_index()
         )
@@ -62,7 +59,7 @@ def render(df: pd.DataFrame) -> None:
                 if reason:
                     st.caption(reason)
                 st.dataframe(
-                    subset[["ISIN", "Name", "Issue Date", "Maturity Date", current_amount_col,
+                    subset[["ISIN", "Name", "Issue Date", "Maturity Date", "Outstanding (EUR)",
                             "MREL Eligible", "Confidence"]],
                     use_container_width=True, hide_index=True,
                 )
@@ -70,7 +67,7 @@ def render(df: pd.DataFrame) -> None:
         st.success("All instruments classified with high confidence")
 
     st.subheader("Missing Outstanding Amounts")
-    missing_amt = df[df[current_amount_col].isna() | (df[current_amount_col] == 0)]
+    missing_amt = df[df["Outstanding (EUR)"].isna() | (df["Outstanding (EUR)"] == 0)]
     if len(missing_amt) > 0:
         st.warning(f"{len(missing_amt)} instruments without outstanding amount data")
         st.dataframe(missing_amt[["ISIN", "Name", "Category"]], use_container_width=True, hide_index=True)
