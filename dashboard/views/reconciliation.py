@@ -4,6 +4,16 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
+RECONCILIATION_REFERENCE_DATE = "2024-12-31"
+HISTORICAL_OUTSTANDING_OVERRIDES = {
+    RECONCILIATION_REFERENCE_DATE: {
+        # Banco BPM 6.00% SNP due 13 Sep 2026:
+        # current DB amount reflects the 2025 buyback, while Pillar 3 31-12-2024
+        # still corresponds to EUR 375m outstanding.
+        "XS2530053789": 375_000_000.0,
+    }
+}
+
 
 def _load_pillar3() -> dict | None:
     agg_path = Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "pillar3_aggregates.json"
@@ -18,6 +28,20 @@ def _fmt_eur(val) -> str:
     if val is None:
         return "N/A"
     return f"{val:,.0f}".replace(",", ".")
+
+
+def _apply_historical_outstanding_overrides(
+    df: pd.DataFrame,
+    reference_date: str = RECONCILIATION_REFERENCE_DATE,
+) -> pd.DataFrame:
+    overrides = HISTORICAL_OUTSTANDING_OVERRIDES.get(reference_date, {})
+    if not overrides:
+        return df
+
+    adjusted = df.copy()
+    for isin, amount in overrides.items():
+        adjusted.loc[adjusted["ISIN"] == isin, "Outstanding (EUR)"] = amount
+    return adjusted
 
 
 def render(df: pd.DataFrame) -> None:
@@ -42,7 +66,8 @@ def render(df: pd.DataFrame) -> None:
     }
     p3_non_sub = tlac1.get("non_subordinated_eligible_liabilities", 0) * unit
 
-    eligible = df[df["MREL Eligible"] == True]
+    eligible = _apply_historical_outstanding_overrides(df)
+    eligible = eligible[eligible["MREL Eligible"] == True]
     bu_by_cat = eligible.groupby("Category")["Outstanding (EUR)"].sum()
 
     # Own funds (CET1, AT1, T2): use Pillar 3 directly — regulatory adjustments
@@ -141,6 +166,12 @@ def render(df: pd.DataFrame) -> None:
 
     recon_df = pd.DataFrame(rows)
     st.dataframe(recon_df, use_container_width=True, hide_index=True)
+
+    if HISTORICAL_OUTSTANDING_OVERRIDES.get(RECONCILIATION_REFERENCE_DATE):
+        st.caption(
+            "Historical reconciliation override applied for selected instruments to neutralize "
+            "post-31-12-2024 buybacks in the Pillar 3 comparison."
+        )
 
     if any(d is not None and abs(d) > 1_000_000 for d in raw_deltas):
         st.warning("Significant discrepancies detected (> EUR 1M). Check the Audit view for details.")
