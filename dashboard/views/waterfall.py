@@ -2,7 +2,13 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 from dashboard.components.charts import waterfall_chart
-from dashboard.official_pillar3 import build_official_waterfall, get_normalized_requirement_profile, get_template_coverage
+from dashboard.official_pillar3 import (
+    build_official_waterfall,
+    describe_cbr_treatment,
+    get_cbr_research_record,
+    get_normalized_requirement_profile,
+    get_template_coverage,
+)
 
 
 def _fmt_eur(value: float) -> str:
@@ -25,6 +31,7 @@ def render(entity_name: str, reference_date: str) -> None:
         st.info("The official waterfall cannot be built for this selection.")
         return
     profile = get_normalized_requirement_profile(entity_name, reference_date)
+    cbr_research = get_cbr_research_record(entity_name, reference_date)
 
     first_req = waterfall.requirement_lines[0]["value"] if waterfall.requirement_lines else None
     second_req = waterfall.requirement_lines[1]["value"] if len(waterfall.requirement_lines) > 1 else None
@@ -46,6 +53,8 @@ def render(entity_name: str, reference_date: str) -> None:
             st.caption(f"CBR normalized on top of MREL/TREA: {profile.cbr_trea * 100:.2f}%")
         else:
             st.caption("CBR not disclosed in the workbook for this bank/date; MREL requirement remains ex-CBR.")
+        if cbr_research is not None:
+            st.caption(f"Reviewed Pillar 3 PDF: {describe_cbr_treatment(cbr_research.cbr_treatment)}.")
 
     fig = waterfall_chart(
         waterfall.components,

@@ -110,6 +110,38 @@ def _render_bank_logo_badge(bank_name: str) -> None:
     )
 
 
+def _render_cbr_research_notice(bank_name: str, reference_date: str) -> None:
+    record = official_pillar3.get_cbr_research_record(bank_name, reference_date)
+    if record is None:
+        st.caption("CBR PDF research: no reviewed Pillar 3 evidence is stored for this bank/date.")
+        return
+
+    treatment_text = official_pillar3.describe_cbr_treatment(record.cbr_treatment)
+    if record.cbr_treatment == "on_top":
+        st.success(f"CBR PDF research: {treatment_text}.")
+    elif record.cbr_treatment == "included":
+        st.info(f"CBR PDF research: {treatment_text}.")
+    else:
+        st.warning(f"CBR PDF research: {treatment_text}.")
+
+    detail_bits: list[str] = []
+    if record.evidence_page is not None:
+        detail_bits.append(f"Page {record.evidence_page}")
+    if record.match_count is not None:
+        detail_bits.append(f"{record.match_count} keyword match{'es' if record.match_count != 1 else ''}")
+    if record.source_type:
+        detail_bits.append(record.source_type.replace("_", " "))
+    if record.source_url:
+        detail_bits.append(f"[Source PDF]({record.source_url})")
+    if detail_bits:
+        st.caption(" | ".join(detail_bits))
+
+    if record.evidence_quote:
+        st.markdown(f"> {record.evidence_quote}")
+    if record.note:
+        st.caption(record.note)
+
+
 def _render_top_bar() -> None:
     nav_col, title_col, action_col = st.columns([1.2, 5, 1])
     with nav_col:
@@ -225,6 +257,7 @@ def _render_official_page() -> None:
         f"{', '.join(coverage_labels) if coverage_labels else 'no official templates'}"
         + (f" | Missing: {', '.join(missing_labels)}" if missing_labels else "")
     )
+    _render_cbr_research_notice(selected_bank, selected_date)
 
     official_tab1, official_tab2 = st.tabs(["MREL Stack Waterfall", "Pillar 3 Official"])
     with official_tab1:

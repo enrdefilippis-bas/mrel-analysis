@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for bare Python execu
     st = _StreamlitCacheShim()
 
 WORKBOOK_PATH = Path(__file__).resolve().parent.parent / "datapillar325.xlsx"
+CBR_DATASET_PATH = Path(__file__).resolve().parent.parent / "cbr" / "dataset.csv"
 
 KM2_TEMPLATE = (
     "K_90.01 - EU KM2 - Key metrics - MREL and, where applicable, "
@@ -132,6 +133,21 @@ class NormalizedRequirementProfile:
     ratio_scale_notes: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class CBRResearchRecord:
+    entity_name: str
+    reference_date: str
+    scrape_status: str | None
+    cbr_treatment: str
+    source_url: str | None
+    source_type: str | None
+    evidence_page: int | None
+    evidence_keyword: str | None
+    evidence_quote: str | None
+    match_count: int | None
+    note: str | None
+
+
 def get_bank_logo_url(entity_name: str) -> str | None:
     domain = BANK_LOGO_DOMAINS.get(entity_name)
     if not domain:
@@ -151,10 +167,43 @@ def _empty_long_frame() -> pd.DataFrame:
     return pd.DataFrame(columns=LONG_COLUMNS)
 
 
+def _empty_cbr_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        columns=[
+            "entity_name",
+            "reference_date",
+            "scrape_status",
+            "cbr_treatment",
+            "source_url",
+            "source_type",
+            "evidence_page",
+            "evidence_keyword",
+            "evidence_quote",
+            "match_count",
+            "pdf_path",
+            "text_path",
+            "note",
+        ]
+    )
+
+
 def _clean_text(value: object) -> object:
     if isinstance(value, str):
         return " ".join(value.split())
     return value
+
+
+def _clean_optional_text(value: object) -> str | None:
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _clean_optional_int(value: object) -> int | None:
+    if pd.isna(value):
+        return None
+    return int(value)
 
 
 def _read_official_workbook(path: Path) -> pd.DataFrame:
@@ -242,6 +291,72 @@ def _append_pdf_supplements(df: pd.DataFrame) -> pd.DataFrame:
 def load_official_pillar3_long(path_str: str | None = None) -> pd.DataFrame:
     path = Path(path_str) if path_str else WORKBOOK_PATH
     return _append_pdf_supplements(_read_official_workbook(path))
+
+
+@st.cache_data(ttl=300)
+def load_cbr_research_dataset(path_str: str | None = None) -> pd.DataFrame:
+    path = Path(path_str) if path_str else CBR_DATASET_PATH
+    if not path.exists():
+        return _empty_cbr_frame()
+
+    df = pd.read_csv(path)
+    if df.empty:
+        return _empty_cbr_frame()
+
+    df = df.rename(columns={"bank_name": "entity_name"}).copy()
+    for column in ["entity_name", "reference_date", "scrape_status", "cbr_treatment", "source_url",
+                   "source_type", "evidence_keyword", "evidence_quote", "pdf_path", "text_path", "note"]:
+        if column in df.columns:
+            df[column] = df[column].map(_clean_optional_text)
+
+    if "evidence_page" in df.columns:
+        df["evidence_page"] = pd.to_numeric(df["evidence_page"], errors="coerce")
+    if "match_count" in df.columns:
+        df["match_count"] = pd.to_numeric(df["match_count"], errors="coerce")
+
+    return df.sort_values(["entity_name", "reference_date"]).reset_index(drop=True)
+
+
+def describe_cbr_treatment(cbr_treatment: str) -> str:
+    return {
+        "on_top": "CBR is on top of the MREL requirement",
+        "included": "CBR is already included in the reported MREL requirement",
+        "not_found": "No explicit CBR treatment was found in the reviewed Pillar 3 PDF",
+    }.get(cbr_treatment, cbr_treatment.replace("_", " "))
+
+
+@st.cache_data(ttl=300)
+def get_cbr_research_record(
+    entity_name: str,
+    reference_date: str,
+    path_str: str | None = None,
+) -> CBRResearchRecord | None:
+    df = load_cbr_research_dataset(path_str)
+    match = df[
+        (df["entity_name"] == entity_name)
+        & (df["reference_date"] == reference_date)
+    ]
+    if match.empty:
+        return None
+
+    row = match.iloc[0]
+    treatment = _clean_optional_text(row.get("cbr_treatment"))
+    if treatment is None:
+        return None
+
+    return CBRResearchRecord(
+        entity_name=entity_name,
+        reference_date=reference_date,
+        scrape_status=_clean_optional_text(row.get("scrape_status")),
+        cbr_treatment=treatment,
+        source_url=_clean_optional_text(row.get("source_url")),
+        source_type=_clean_optional_text(row.get("source_type")),
+        evidence_page=_clean_optional_int(row.get("evidence_page")),
+        evidence_keyword=_clean_optional_text(row.get("evidence_keyword")),
+        evidence_quote=_clean_optional_text(row.get("evidence_quote")),
+        match_count=_clean_optional_int(row.get("match_count")),
+        note=_clean_optional_text(row.get("note")),
+    )
 
 
 @st.cache_data(ttl=300)

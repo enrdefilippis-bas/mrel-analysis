@@ -4,6 +4,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from dashboard.official_pillar3 import (
     build_tlac3_rank_table,
+    describe_cbr_treatment,
+    get_cbr_research_record,
     get_normalized_requirement_profile,
     get_template_coverage,
     get_template_snapshot,
@@ -43,6 +45,7 @@ def render(entity_name: str, reference_date: str) -> None:
     km2 = get_template_snapshot(entity_name, reference_date, "KM2")
     tlac1 = get_template_snapshot(entity_name, reference_date, "TLAC1")
     profile = get_normalized_requirement_profile(entity_name, reference_date)
+    cbr_research = get_cbr_research_record(entity_name, reference_date)
 
     if km2.empty and tlac1.empty and not coverage.get("TLAC3"):
         st.warning("No official Pillar 3 data is available for this bank/date.")
@@ -69,6 +72,11 @@ def render(entity_name: str, reference_date: str) -> None:
             st.caption("Normalization notes: " + " | ".join(profile.ratio_scale_notes))
         elif not profile.cbr_disclosed:
             st.caption("No CBR row disclosed for this bank/date. KM2 requirements remain ex-CBR.")
+        if cbr_research is not None:
+            research_caption = f"Reviewed Pillar 3 PDF: {describe_cbr_treatment(cbr_research.cbr_treatment)}."
+            if cbr_research.evidence_page is not None:
+                research_caption += f" Evidence page: {cbr_research.evidence_page}."
+            st.caption(research_caption)
 
         ratio_data = [
             {

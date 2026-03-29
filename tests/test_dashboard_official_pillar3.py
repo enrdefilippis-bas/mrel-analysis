@@ -9,6 +9,7 @@ from dashboard.official_pillar3 import (
     WORKBOOK_PATH,
     build_official_waterfall,
     build_tlac3_rank_table,
+    get_cbr_research_record,
     get_bank_logo_url,
     get_bank_monogram,
     get_normalized_requirement_profile,
@@ -157,3 +158,14 @@ def test_requirement_normalization_handles_scale_and_cbr():
     bper = get_normalized_requirement_profile("BPER Banca S.p.A.", "2025-06-30", str(WORKBOOK_PATH))
     assert bper.actual_mrel_trea == pytest.approx(0.3433)
     assert bper.requirement_mrel_trea == pytest.approx(0.2546)
+
+
+def test_cbr_research_record_exposes_banco_bpm_on_top_evidence():
+    bpm = get_cbr_research_record("BANCO BPM SOCIETA' PER AZIONI", "2025-06-30")
+    assert bpm is not None
+    assert bpm.cbr_treatment == "on_top"
+    assert bpm.evidence_page == 21
+    assert bpm.source_url is not None
+    assert "netto del requisito combinato di riserva di capitale" in (bpm.evidence_quote or "").lower()
+
+    assert get_cbr_research_record("BANCO BPM SOCIETA' PER AZIONI", "2025-12-31") is None
