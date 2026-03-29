@@ -4,6 +4,8 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
+from dashboard.instrument_intelligence import CURRENT_OUTSTANDING_COLUMN, SNAPSHOT_DATES, snapshot_column_name
+
 
 def _load_pillar3() -> dict | None:
     agg_path = Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "pillar3_aggregates.json"
@@ -15,6 +17,7 @@ def _load_pillar3() -> dict | None:
 
 def render(df: pd.DataFrame) -> None:
     st.header("Instrument Explorer")
+    current_amount_col = CURRENT_OUTSTANDING_COLUMN if CURRENT_OUTSTANDING_COLUMN in df.columns else "Outstanding (EUR)"
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -70,9 +73,9 @@ def render(df: pd.DataFrame) -> None:
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Instruments", len(filtered))
     col2.metric("MREL Eligible", len(filtered[filtered["MREL Eligible"] == True]))
-    total_outstanding = filtered["Outstanding (EUR)"].sum()
+    total_outstanding = filtered[current_amount_col].sum()
     col3.metric("Total Outstanding", f"EUR {total_outstanding:,.0f}".replace(",", "."))
-    eligible_outstanding = filtered[filtered["MREL Eligible"] == True]["Outstanding (EUR)"].sum()
+    eligible_outstanding = filtered[filtered["MREL Eligible"] == True][current_amount_col].sum()
     col4.metric("Eligible Outstanding", f"EUR {eligible_outstanding:,.0f}".replace(",", "."))
     if p3_ref is not None:
         col5.metric(p3_label, f"EUR {p3_ref:,.0f}".replace(",", "."),
@@ -84,12 +87,35 @@ def render(df: pd.DataFrame) -> None:
     if p3_note:
         st.caption(p3_note)
 
+    display_columns = [
+        "ISIN",
+        "Name",
+        "Category",
+        "Issue Date",
+        "Maturity Date",
+        current_amount_col,
+        *[snapshot_column_name(reference_date) for reference_date in SNAPSHOT_DATES],
+        "Original Amount (EUR)",
+        "Currency",
+        "Listing Venue",
+        "MREL Eligible",
+        "MREL Layer",
+        "Eligibility Reason",
+        "Confidence",
+    ]
+    display_columns = [column for column in display_columns if column in filtered.columns]
+
     st.dataframe(
-        filtered,
+        filtered[display_columns],
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Outstanding (EUR)": st.column_config.NumberColumn(format="EUR %,.0f"),
+            current_amount_col: st.column_config.NumberColumn("Outstanding Current (EUR)", format="EUR %,.0f"),
+            "Original Amount (EUR)": st.column_config.NumberColumn(format="EUR %,.0f"),
+            **{
+                snapshot_column_name(reference_date): st.column_config.NumberColumn(format="EUR %,.0f")
+                for reference_date in SNAPSHOT_DATES
+            },
             "Confidence": st.column_config.ProgressColumn(min_value=0, max_value=1),
             "MREL Eligible": st.column_config.CheckboxColumn(),
         },
