@@ -131,11 +131,13 @@ def test_requirement_normalization_handles_scale_and_cbr():
     assert sabadell.requirement_mrel_trea == pytest.approx(0.2531)
     assert sabadell.cbr_trea is None
     assert sabadell.binding_mrel_trea == pytest.approx(0.2531)
+    assert sabadell.binding_subordination_trea == pytest.approx(0.1901)
 
     banco_bpm_june = get_normalized_requirement_profile("BANCO BPM SOCIETA' PER AZIONI", "2025-06-30", str(WORKBOOK_PATH))
     assert banco_bpm_june.requirement_mrel_trea == pytest.approx(0.2266)
     assert banco_bpm_june.cbr_trea == pytest.approx(0.0374)
     assert banco_bpm_june.binding_mrel_trea == pytest.approx(0.2640)
+    assert banco_bpm_june.binding_subordination_trea == pytest.approx(0.2003)
 
     santander = get_normalized_requirement_profile("Banco Santander, S.A.", "2025-12-31", str(WORKBOOK_PATH))
     assert santander.cbr_disclosed is True
@@ -146,6 +148,7 @@ def test_requirement_normalization_handles_scale_and_cbr():
     banco_bpm = get_normalized_requirement_profile("BANCO BPM SOCIETA' PER AZIONI", "2025-12-31", str(WORKBOOK_PATH))
     assert banco_bpm.cbr_disclosed is False
     assert banco_bpm.requirement_mrel_trea == pytest.approx(0.2260)
+    assert banco_bpm.binding_subordination_trea == pytest.approx(0.1591)
 
     unicredit = get_normalized_requirement_profile("UniCredit S.p.A.", "2025-06-30", str(WORKBOOK_PATH))
     assert unicredit.actual_mrel_trea == pytest.approx(0.3215)
@@ -161,6 +164,7 @@ def test_requirement_normalization_handles_scale_and_cbr():
     assert intesa.requirement_mrel_trea == pytest.approx(0.21)
     assert intesa.cbr_trea == pytest.approx(0.0448)
     assert intesa.binding_mrel_trea == pytest.approx(0.2548)
+    assert intesa.binding_subordination_trea == pytest.approx(0.1798)
 
     iccrea = get_normalized_requirement_profile(
         "ICCREA BANCA S.P.A. - ISTITUTO CENTRALE DEL CREDITO COOPERATIVO (IN FORMA ABBREVIATA: ICCREA BANCA S.P.A.)",
@@ -170,6 +174,7 @@ def test_requirement_normalization_handles_scale_and_cbr():
     assert iccrea.cbr_trea == pytest.approx(0.0359)
     assert iccrea.requirement_mrel_trea == pytest.approx(0.2166)
     assert iccrea.binding_mrel_trea == pytest.approx(0.2166)
+    assert iccrea.binding_subordination_trea == pytest.approx(0.1709)
 
     bper = get_normalized_requirement_profile("BPER Banca S.p.A.", "2025-06-30", str(WORKBOOK_PATH))
     assert bper.actual_mrel_trea == pytest.approx(0.3433)

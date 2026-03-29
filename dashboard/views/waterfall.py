@@ -50,11 +50,11 @@ def render(entity_name: str, reference_date: str) -> None:
             f"Subordination {_fmt_eur(float(second_req))}"
         )
         if cbr_research is not None and cbr_research.cbr_treatment == "on_top" and profile.cbr_trea is not None:
-            st.caption(f"CBR normalized on top of MREL/TREA: {profile.cbr_trea * 100:.2f}%")
+            st.caption(f"CBR normalized on top of MREL/TREA and subordination/TREA: {profile.cbr_trea * 100:.2f}%")
         elif cbr_research is not None and cbr_research.cbr_treatment == "included" and profile.cbr_trea is not None:
-            st.caption(f"CBR already included in the reviewed Pillar 3 MREL/TREA: {profile.cbr_trea * 100:.2f}%")
+            st.caption(f"CBR already included in the reviewed Pillar 3 TREA requirements: {profile.cbr_trea * 100:.2f}%")
         elif profile.cbr_disclosed and profile.cbr_trea is not None:
-            st.caption(f"CBR normalized on top of MREL/TREA: {profile.cbr_trea * 100:.2f}%")
+            st.caption(f"CBR normalized on top of MREL/TREA and subordination/TREA: {profile.cbr_trea * 100:.2f}%")
         else:
             st.caption("CBR not disclosed in the workbook for this bank/date; MREL requirement remains ex-CBR.")
         if cbr_research is not None:

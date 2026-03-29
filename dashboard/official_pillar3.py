@@ -129,6 +129,7 @@ class NormalizedRequirementProfile:
     requirement_subordination_tem: float | None
     cbr_trea: float | None
     binding_mrel_trea: float | None
+    binding_subordination_trea: float | None
     cbr_disclosed: bool
     ratio_scale_notes: tuple[str, ...]
 
@@ -588,8 +589,11 @@ def get_normalized_requirement_profile(
 
     cbr_on_top = cbr_raw is not None or (cbr_research is not None and cbr_research.cbr_treatment == "on_top")
     binding_mrel_trea = req_mrel_trea
+    binding_sub_trea = req_sub_trea
     if cbr_on_top and req_mrel_trea is not None and cbr_trea is not None:
         binding_mrel_trea = req_mrel_trea + cbr_trea
+    if cbr_on_top and req_sub_trea is not None and cbr_trea is not None:
+        binding_sub_trea = req_sub_trea + cbr_trea
 
     notes: list[str] = []
     scale_map = {
@@ -624,6 +628,7 @@ def get_normalized_requirement_profile(
         requirement_subordination_tem=req_sub_tem,
         cbr_trea=cbr_trea,
         binding_mrel_trea=binding_mrel_trea,
+        binding_subordination_trea=binding_sub_trea,
         cbr_disclosed=cbr_trea is not None,
         ratio_scale_notes=tuple(notes),
     )
@@ -650,7 +655,7 @@ def build_official_waterfall(
     total_mrel = _numeric_first(tlac1, "0250") or 0.0
     trea = _numeric_first(get_template_snapshot(entity_name, reference_date, "KM2", path_str), "0030") or 0.0
     mrel_req_ratio = profile.binding_mrel_trea
-    sub_req_ratio = profile.requirement_subordination_trea
+    sub_req_ratio = profile.binding_subordination_trea
 
     running_total = (
         cet1
@@ -701,7 +706,11 @@ def build_official_waterfall(
                 "value": trea * sub_req_ratio,
                 "color": "orange",
                 "dash": "dot",
-                "annotation": f"Sub. Req ({sub_req_ratio * 100:.2f}% TREA)",
+                "annotation": (
+                    f"Sub. Req + CBR ({sub_req_ratio * 100:.2f}% TREA)"
+                    if profile.cbr_trea is not None and sub_req_ratio != profile.requirement_subordination_trea
+                    else f"Sub. Req ({sub_req_ratio * 100:.2f}% TREA)"
+                ),
             },
         )
 

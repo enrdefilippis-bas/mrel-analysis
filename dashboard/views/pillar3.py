@@ -63,10 +63,11 @@ def render(entity_name: str, reference_date: str) -> None:
         col3.metric("TREA", _fmt_eur(trea))
         col4.metric("TEM", _fmt_eur(tem))
 
-        status_col1, status_col2, status_col3 = st.columns(3)
+        status_col1, status_col2, status_col3, status_col4 = st.columns(4)
         status_col1.metric("CBR Disclosed", "Yes" if profile.cbr_disclosed else "No")
         status_col2.metric("CBR / TREA", _fmt_pct(profile.cbr_trea))
         status_col3.metric("Binding MREL / TREA", _fmt_pct(profile.binding_mrel_trea))
+        status_col4.metric("Binding Subordination / TREA", _fmt_pct(profile.binding_subordination_trea))
 
         if profile.ratio_scale_notes:
             st.caption("Normalization notes: " + " | ".join(profile.ratio_scale_notes))
@@ -96,7 +97,7 @@ def render(entity_name: str, reference_date: str) -> None:
             {
                 "Metric": "Subordination / TREA",
                 "Actual": profile.actual_subordination_trea,
-                "Requirement": profile.requirement_subordination_trea,
+                "Requirement": profile.binding_subordination_trea,
                 "Requirement Raw": profile.requirement_subordination_trea,
                 "Base": trea,
             },
