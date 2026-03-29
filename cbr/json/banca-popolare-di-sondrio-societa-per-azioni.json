@@ -1,0 +1,29 @@
+{
+  "bank_name": "BANCA POPOLARE DI SONDRIO SOCIETA' PER AZIONI",
+  "reference_date": "2025-06-30",
+  "source_url": "https://istituzionale.popso.it/sites/default/files/documents/Banca%20Popolare%20di%20Sondrio%20Pillar%20III%2030%2006%202025.pdf",
+  "source_type": "discovered_from_landing_page",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/banca-popolare-di-sondrio-societa-per-azioni.pdf",
+  "text_path": "cbr/text/banca-popolare-di-sondrio-societa-per-azioni.txt",
+  "match_count": 3,
+  "classification": "explicit_on_top",
+  "matches": [
+    {
+      "page": 40,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "sizione rilevante ai fini dell\u2019indicatore di leva finanziaria regolamentare. In aggiunta al requisito minimo MREL-TREA, \u00e8 inoltre definito un cuscinetto addizionale da sommare al fabbisogno MREL- TREA pari al valore del requisito combinato di riserva di capitale, che si sostanza nella previsione di una soglia di allerta preventiva (early warning) da doversi comunque osservare in via anticipatoria rispetto al livello minimo vincolante, a cui si associa un obbligo di"
+    },
+    {
+      "page": 40,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "ione assunta in materia di Requisito MREL, in base alla quale \u00e8 stato disposto che con decorrenza contestuale la Banca debba rispettare su base consolidata tanto un requisito MREL-TREA (non inclusivo della componente di requisito combinato di riserva di capitale) pari a un livello minimo del 22,76% delle proprie attivit\u00e0 ponderate per il rischio, quanto un requisito MREL-LRE almeno pari al 5,90% dell\u2019esposizione di leva finanziaria. TERZO PILASTRO Data di riferiment"
+    },
+    {
+      "page": 41,
+      "keyword": "riserva combinata(?: di capitale)?",
+      "snippet": "presenta coefficienti MREL superiori alle suddette soglie minime. In particolare: \u25a0 l\u2019indicatore MREL-TREA \u00e8 pari al 27,75%; il quoziente si raffronta al requisito minimo del 22,76% e a un limite secondario inclusivo di riserva combinata di capitale del 26,03%; \u25a0 l\u2019indicatore MREL-LRE si attesta all\u201911,80%, contro un requisito regolamentare del 5,90%. Tabella 14 - Modello EU KM2 Metriche principali - MREL e, se del caso, requisito di fondi propri e passivit\u00e0 ammiss"
+    }
+  ]
+}

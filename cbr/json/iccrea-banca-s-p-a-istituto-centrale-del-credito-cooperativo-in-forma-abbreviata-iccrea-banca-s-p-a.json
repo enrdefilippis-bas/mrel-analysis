@@ -1,0 +1,19 @@
+{
+  "bank_name": "ICCREA BANCA S.P.A. - ISTITUTO CENTRALE DEL CREDITO COOPERATIVO (IN FORMA ABBREVIATA: ICCREA BANCA S.P.A.)",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.gruppobcciccrea.it/Altri_Documeni_Pillar/Informativa%20al%20pubblico%20-%20Pillar%203%2030.06.2025_05112025.pdf",
+  "source_type": "discovered_from_landing_page",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/iccrea-banca-s-p-a-istituto-centrale-del-credito-cooperativo-in-forma-abbreviata-iccrea-banca-s-p-a.pdf",
+  "text_path": "cbr/text/iccrea-banca-s-p-a-istituto-centrale-del-credito-cooperativo-in-forma-abbreviata-iccrea-banca-s-p-a.txt",
+  "match_count": 1,
+  "classification": "explicit_included",
+  "matches": [
+    {
+      "page": 40,
+      "keyword": "riserva combinata(?: di capitale)?",
+      "snippet": "etto a risoluzione. Il livello obbligatorio finale del requisito MREL su base consolidata (cui si conforma la Capogruppo), da rispettare entro il 1\u00b0 gennaio 2026, \u00e8 pari al 26,03% degli RWA (comprensivo del requisito di riserva combinata di capitale pari al 30 giugno 2025 al 3,59% degli RWA) e al 6,33% di LRE. \u00c8 previsto un livello obbligatorio intermedio, da rispettare 41"
+    }
+  ]
+}

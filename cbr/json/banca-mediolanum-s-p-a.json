@@ -1,0 +1,24 @@
+{
+  "bank_name": "BANCA MEDIOLANUM S.P.A.",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.bancamediolanum.it/static-assets/documenti/file/it/2025/12/23/Pillar_III_30giugno2025.pdf",
+  "source_type": "direct_pdf",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/banca-mediolanum-s-p-a.pdf",
+  "text_path": "cbr/text/banca-mediolanum-s-p-a.txt",
+  "match_count": 2,
+  "classification": "explicit_on_top",
+  "matches": [
+    {
+      "page": 35,
+      "keyword": "combined buffer requirement",
+      "snippet": "to minimo di fondi propri e passivit\u00e0 ammissibili (MREL). A partire dal 1\u00b0 gennaio 2025, Banca Mediolanum deve rispettare su base consolidata un requisito MREL TREA (esposizione al rischio) pari al 18,22% maggiorato del Combined Buffer Requirement applicabile pari al 3,16%, portando il requisito complessivo al 21,38%; e un requisito MREL LRE (esposizione complessiva per la leva finanziaria) pari al 5,20%. Al fine del rispetto del requisito e del computo delle alt"
+    },
+    {
+      "page": 35,
+      "keyword": "combined buffer",
+      "snippet": "to minimo di fondi propri e passivit\u00e0 ammissibili (MREL). A partire dal 1\u00b0 gennaio 2025, Banca Mediolanum deve rispettare su base consolidata un requisito MREL TREA (esposizione al rischio) pari al 18,22% maggiorato del Combined Buffer Requirement applicabile pari al 3,16%, portando il requisito complessivo al 21,38%; e un requisito MREL LRE (esposizione complessiva per la leva finanziaria) pari al 5,20%. Al fine del rispetto del requisito e del compu"
+    }
+  ]
+}

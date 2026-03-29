@@ -1,0 +1,24 @@
+{
+  "bank_name": "CREDITO EMILIANO HOLDING SOCIETA' PER AZIONI",
+  "reference_date": "2025-06-30",
+  "source_url": "https://cdn.financialreports.eu/financialreports/media/filings/4312/2025/RNS/4312_rns_2025-09-16_b2dc6af3-f551-41e0-abc0-9f6b783b415c.pdf",
+  "source_type": "direct_pdf",
+  "note": "Using a FinancialReports mirror because the official Credem investor page does not expose a stable PDF link in static HTML.",
+  "status": "ok",
+  "pdf_path": "cbr/raw/credito-emiliano-holding-societa-per-azioni.pdf",
+  "text_path": "cbr/text/credito-emiliano-holding-societa-per-azioni.txt",
+  "match_count": 2,
+  "classification": "explicit_on_top",
+  "matches": [
+    {
+      "page": 23,
+      "keyword": "combined buffer requirement",
+      "snippet": "o minimo di fondi propri e passivit\u00e0 ammissibili (MREL). A partire dal 15 novembre 2024, il gruppo Credem deve rispettare su base consolidata un requisito MREL-TREA (esposizione al rischio) pari al 19,55% maggiorato del Combined Buffer Requirement applicabile e un requisito MREL-LRE (esposizione complessiva per la leva finanziaria) pari al 5,91%. Al fine del rispetto del requisito e del computo delle altre passivit\u00e0 ammissibili emesse da Credem, non \u00e8 richiesto a"
+    },
+    {
+      "page": 23,
+      "keyword": "combined buffer",
+      "snippet": "o minimo di fondi propri e passivit\u00e0 ammissibili (MREL). A partire dal 15 novembre 2024, il gruppo Credem deve rispettare su base consolidata un requisito MREL-TREA (esposizione al rischio) pari al 19,55% maggiorato del Combined Buffer Requirement applicabile e un requisito MREL-LRE (esposizione complessiva per la leva finanziaria) pari al 5,91%. Al fine del rispetto del requisito e del computo delle altre passivit\u00e0 ammissibili emesse da Credem, non \u00e8"
+    }
+  ]
+}

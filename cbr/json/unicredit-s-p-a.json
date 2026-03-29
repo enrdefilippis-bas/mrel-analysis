@@ -1,0 +1,13 @@
+{
+  "bank_name": "UniCredit S.p.A.",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.unicreditgroup.eu/content/dam/unicreditgroup-eu/documents/en/investors/third-pillar-basel/2025/UniCredit-Group-Disclosure-Pillar-III-as-at-30-June-2025.pdf",
+  "source_type": "direct_pdf",
+  "note": "Included manually for CBR research because the entity is not present in the workbook export used for the dashboard.",
+  "status": "ok",
+  "pdf_path": "cbr/raw/unicredit-s-p-a.pdf",
+  "text_path": "cbr/text/unicredit-s-p-a.txt",
+  "match_count": 0,
+  "classification": "no_match",
+  "matches": []
+}

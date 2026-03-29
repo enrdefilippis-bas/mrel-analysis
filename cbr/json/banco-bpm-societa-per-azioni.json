@@ -1,0 +1,29 @@
+{
+  "bank_name": "BANCO BPM SOCIETA' PER AZIONI",
+  "reference_date": "2025-06-30",
+  "source_url": "https://gruppo.bancobpm.it/media/dlm_uploads/P3-Giugno-2025_Documento.pdf",
+  "source_type": "direct_pdf",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/banco-bpm-societa-per-azioni.pdf",
+  "text_path": "cbr/text/banco-bpm-societa-per-azioni.txt",
+  "match_count": 3,
+  "classification": "explicit_on_top",
+  "matches": [
+    {
+      "page": 19,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "o in quanto ha ritenuto fattibile e credibile che sia sufficiente un importo inferiore per sostenere la fiducia del mercato. Si precisa che al requisito minimo di MREL-TREA sopra riportato (pari a 22,66%) va aggiunto il requisito combinato di riserva di capitale applicabile al Gruppo Banco BPM che, alla data del 30 giugno 2025 \u00e8 pari a 3,74%; o il requisito minimo MREL-LRE o MREL-TEM, pari a 6,10% dell\u2019esposizione totale del coefficiente di leva finanziaria, che tie"
+    },
+    {
+      "page": 19,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "\u201cBalance Sheet Depletion\u201d. \u2022 Requisito di subordinazione composto da: o il requisito minimo MREL-TREA pari a 16,29% delle attivit\u00e0 ponderate per il rischio. Si precisa che al requisito minimo di MREL-TREA va aggiunto il requisito combinato di riserva di capitale applicabile al Gruppo Banco BPM che, alla data del 30 giugno 2025 \u00e8 pari a 3,74%; o il requisito minimo MREL-LRE pari a 6,10% dell\u2019esposizione totale del coefficiente di leva finanziaria. Ai fini del rispett"
+    },
+    {
+      "page": 21,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "ne ha concesso la preventiva autorizzazione al Gruppo Banco BPM (cd. \u201cGeneral Prior Permission\u201d). (b) In coerenza alle istruzioni per la compilazione del modello EU KM2, i requisiti MREL-TREA sono riportati al netto del requisito combinato di riserva di capitale, che il Gruppo \u00e8 tenuto a rispettare in aggiunta ai requisiti MREL-TREA ai sensi dell\u2019articolo 10 bis del Regolamento (UE) 806/2014. 21"
+    }
+  ]
+}

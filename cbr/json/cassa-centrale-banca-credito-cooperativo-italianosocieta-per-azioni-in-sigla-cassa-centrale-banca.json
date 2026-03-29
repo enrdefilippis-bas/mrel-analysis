@@ -1,0 +1,24 @@
+{
+  "bank_name": "CASSA CENTRALE BANCA - CREDITO COOPERATIVO ITALIANOSOCIETA' PER AZIONI (IN SIGLA CASSA CENTRALE BANCA)",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.cassacentrale.it/sites/default/files/documents_attachments/GBC%20-%20Informativa%20al%20Pubblico%20al%2030.06.2025_signed_signed.pdf",
+  "source_type": "discovered_from_landing_page",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/cassa-centrale-banca-credito-cooperativo-italianosocieta-per-azioni-in-sigla-cassa-centrale-banca.pdf",
+  "text_path": "cbr/text/cassa-centrale-banca-credito-cooperativo-italianosocieta-per-azioni-in-sigla-cassa-centrale-banca.txt",
+  "match_count": 2,
+  "classification": "explicit_on_top",
+  "matches": [
+    {
+      "page": 19,
+      "keyword": "\\bcbr\\b",
+      "snippet": "lla Capogruppo. Il requisito minimo di fondi propri e passivit\u00e0 ammissibili su base consolidata (cui si deve conformare la Capogruppo) \u00e8 del 22,40% del TREA (a cui sommare il requisito combinato di riserva del capitale (CBR)) e del 5,91% del LRE. La Capogruppo \u00e8 tenuta a soddisfare i requisiti di cui sopra a partire dalla ricezione della MREL decision. Alla data di riferimento del 30 giugno 2025, Cassa Centrale Banca e le entit\u00e0 rilevanti"
+    },
+    {
+      "page": 19,
+      "keyword": "requisito combinato di riserva(?: del capitale)?",
+      "snippet": "luzione verrebbero applicati esclusivamente alla Capogruppo. Il requisito minimo di fondi propri e passivit\u00e0 ammissibili su base consolidata (cui si deve conformare la Capogruppo) \u00e8 del 22,40% del TREA (a cui sommare il requisito combinato di riserva del capitale (CBR)) e del 5,91% del LRE. La Capogruppo \u00e8 tenuta a soddisfare i requisiti di cui sopra a partire dalla ricezione della MREL decision. Alla data di riferimento del 30 giugno 2025, Cassa Centrale Banca e le entit\u00e0 rilev"
+    }
+  ]
+}

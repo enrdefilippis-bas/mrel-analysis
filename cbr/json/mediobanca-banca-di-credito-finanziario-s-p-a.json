@@ -1,0 +1,19 @@
+{
+  "bank_name": "Mediobanca - Banca di Credito Finanziario S.p.A.",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.mediobanca.com/static/upload_new/doc/documento-pillar-ita-30-06-2025.pdf",
+  "source_type": "direct_pdf",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/mediobanca-banca-di-credito-finanziario-s-p-a.pdf",
+  "text_path": "cbr/text/mediobanca-banca-di-credito-finanziario-s-p-a.txt",
+  "match_count": 1,
+  "classification": "explicit_included",
+  "matches": [
+    {
+      "page": 63,
+      "keyword": "\\bcbr\\b",
+      "snippet": "B) i requisiti minimi da rispettare ai fini MREL (MREL Decision). Dall\u2019ultima MREL Decision ricevuta a fine 2024, il Gruppo \u00e8 chiamato a rispettare i seguenti requisiti fino al 15 luglio 2025: - MREL-TREA: 23,92% (incl. CBR) con un subordination requirement del 16,67% - MREL-LRE: 5,91%12 L\u2019ammontare di fondi propri e passivit\u00e0 ammissibili (MREL) al 30 giugno 2025 si conferma al 42,6% degli RWA, significativamente superiore al requisito min"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "bank_name": "Banca Monte dei Paschi di Siena S.p.A.",
+  "reference_date": "2025-06-30",
+  "source_url": "https://www.gruppomps.it/static/upload/inf/informativa-al-pubblico---giugno-2025.pdf",
+  "source_type": "direct_pdf",
+  "note": null,
+  "status": "ok",
+  "pdf_path": "cbr/raw/banca-monte-dei-paschi-di-siena-s-p-a.pdf",
+  "text_path": "cbr/text/banca-monte-dei-paschi-di-siena-s-p-a.txt",
+  "match_count": 0,
+  "classification": "no_match",
+  "matches": []
+}

@@ -1,0 +1,13 @@
+{
+  "bank_name": "BPER Banca S.p.A.",
+  "reference_date": "2025-06-30",
+  "source_url": "https://group.bper.it/documents/133577364/2796734466/Informativa+al+Pubblico+al+30+giugno+2025.pdf/4ca09233-b4bb-f4d2-8960-945f2b45fe7d?version=1.0&t=1759250224385",
+  "source_type": "discovered_from_landing_page",
+  "note": "Included manually for CBR research because the entity is not present in the workbook export used for the dashboard.",
+  "status": "ok",
+  "pdf_path": "cbr/raw/bper-banca-s-p-a.pdf",
+  "text_path": "cbr/text/bper-banca-s-p-a.txt",
+  "match_count": 0,
+  "classification": "no_match",
+  "matches": []
+}

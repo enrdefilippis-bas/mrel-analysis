@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 
 import pandas as pd
+from dashboard.pdf_pillar3_supplement import load_pdf_pillar3_supplement_long
 
 try:
     import streamlit as st
@@ -63,6 +64,7 @@ BANK_LOGO_DOMAINS = {
     "ING Belgie": "ing.be",
     "ING Groep N.V.": "ing.com",
     "Ibercaja Banco, S.A.": "ibercaja.es",
+    "Intesa Sanpaolo S.p.A.": "intesasanpaolo.com",
     "Investeringsmaatschappij Argenta - Société d'investissements Argenta - Investierungsgesellschaft Arg": "argenta.be",
     "KBC Groupe": "kbc.com",
     "Kutxabank, S.A.": "kutxabank.es",
@@ -74,6 +76,8 @@ BANK_LOGO_DOMAINS = {
     "Swedbank - Grupp": "swedbank.com",
     "Tatra banka, a.s.": "tatrabanka.sk",
     "Triodos Bank N.V.": "triodos.com",
+    "UniCredit S.p.A.": "unicreditgroup.eu",
+    "BPER Banca S.p.A.": "bper.it",
     "de Volksbank N.V.": "devolksbank.nl",
     "mBank S.A.": "mbank.pl",
     "Íslandsbanki hf.": "islandsbanki.is",
@@ -226,10 +230,18 @@ def _read_official_workbook(path: Path) -> pd.DataFrame:
     )
 
 
+def _append_pdf_supplements(df: pd.DataFrame) -> pd.DataFrame:
+    supplement = load_pdf_pillar3_supplement_long()
+    if supplement.empty:
+        return df.reset_index(drop=True)
+    combined = pd.concat([df, supplement], ignore_index=True, sort=False)
+    return combined.sort_values(["entity_name", "reference_date", "template", "row", "column"]).reset_index(drop=True)
+
+
 @st.cache_data(ttl=300)
 def load_official_pillar3_long(path_str: str | None = None) -> pd.DataFrame:
     path = Path(path_str) if path_str else WORKBOOK_PATH
-    return _read_official_workbook(path)
+    return _append_pdf_supplements(_read_official_workbook(path))
 
 
 @st.cache_data(ttl=300)
