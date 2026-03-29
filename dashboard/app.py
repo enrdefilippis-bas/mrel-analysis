@@ -196,6 +196,10 @@ def _render_home() -> None:
 def _render_instrument_page() -> None:
     st.header("Instrument Intelligence")
     st.caption("Banco BPM scope for this release.")
+    st.caption(
+        "For the Pillar 3 reconciliation, outstanding amounts are interpreted as of 31-12-2024. "
+        "Instrument Explorer and Audit continue to show the operational dataset amounts."
+    )
 
     instrument_df = load_instrument_data()
     if instrument_df.empty:

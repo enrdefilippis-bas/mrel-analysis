@@ -46,6 +46,10 @@ def _apply_historical_outstanding_overrides(
 
 def render(df: pd.DataFrame) -> None:
     st.header("Reconciliation: Bottom-Up vs Pillar 3")
+    st.caption(
+        "Bottom-up outstanding amounts in this comparison are aligned to 31-12-2024, the latest "
+        "official Pillar 3 reference date."
+    )
 
     p3 = _load_pillar3()
     if not p3:
