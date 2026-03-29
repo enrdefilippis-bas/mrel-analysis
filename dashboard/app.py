@@ -223,14 +223,28 @@ def _render_instrument_page() -> None:
 def _render_official_page() -> None:
     st.header("Pillar 3 Official")
 
-    banks = official_pillar3.list_official_banks()
-    if not banks:
+    all_countries = official_pillar3.list_official_countries()
+    if not all_countries:
         st.warning("The official Pillar 3 workbook is not available.")
         return
 
+    country_col, bank_col, logo_col, date_col = st.columns([1.4, 2.2, 1.2, 1.2])
+    with country_col:
+        selected_country = st.selectbox(
+            "Country",
+            ["All"] + all_countries,
+            index=(["All"] + all_countries).index("Italy") if "Italy" in all_countries else 0,
+            key="official_country",
+        )
+
+    country_filter = selected_country if selected_country != "All" else None
+    banks = official_pillar3.list_official_banks(country=country_filter)
+    if not banks:
+        st.warning("No banks available for the selected country.")
+        return
+
     default_bank = _default_bank(banks)
-    filter_col1, logo_col, filter_col2 = st.columns([2.2, 1.4, 1.4])
-    with filter_col1:
+    with bank_col:
         selected_bank = st.selectbox(
             "Bank",
             banks,

@@ -421,8 +421,16 @@ def get_cbr_research_record(
 
 
 @st.cache_data(ttl=300)
-def list_official_banks(path_str: str | None = None) -> list[str]:
+def list_official_countries(path_str: str | None = None) -> list[str]:
     df = load_official_pillar3_long(path_str)
+    return sorted(df["country"].dropna().unique().tolist())
+
+
+@st.cache_data(ttl=300)
+def list_official_banks(country: str | None = None, path_str: str | None = None) -> list[str]:
+    df = load_official_pillar3_long(path_str)
+    if country:
+        df = df[df["country"] == country]
     return sorted(df["entity_name"].dropna().unique().tolist())
 
 
