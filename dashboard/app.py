@@ -259,7 +259,7 @@ def _render_official_page() -> None:
         st.warning("No reference dates are available for the selected bank.")
         return
 
-    with filter_col2:
+    with date_col:
         selected_date = st.selectbox(
             "Reference Date",
             bank_dates,
