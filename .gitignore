@@ -5,4 +5,4 @@ data/raw/
 data/db/
 .env
 *.egg-info/
-.streamlit/
+.streamlit/secrets.toml
