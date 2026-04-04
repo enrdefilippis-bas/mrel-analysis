@@ -16,7 +16,7 @@ FIELDS = (
     "isin,gnr_full_name,gnr_short_name,gnr_cfi_code,"
     "bnd_nmnl_value_total,bnd_nmnl_value_curr_code,bnd_nmnl_value_unit,"
     "bnd_maturity_date,bnd_fixed_rate,bnd_seniority,"
-    "lei,mic"
+    "lei,mic,mrkt_trdng_start_date"
 )
 
 
@@ -31,6 +31,7 @@ class FIRDSRecord:
     seniority: str | None = None
     cfi_code: str | None = None
     nominal_unit: float | None = None
+    trading_start_date: str | None = None
 
 
 async def fetch_firds_record(
@@ -54,6 +55,7 @@ async def fetch_firds_record(
             return None
 
         doc = docs[0]
+        tsd = doc.get("mrkt_trdng_start_date")
         return FIRDSRecord(
             isin=isin,
             name=doc.get("gnr_full_name") or doc.get("gnr_short_name"),
@@ -64,6 +66,7 @@ async def fetch_firds_record(
             seniority=doc.get("bnd_seniority"),
             cfi_code=doc.get("gnr_cfi_code"),
             nominal_unit=doc.get("bnd_nmnl_value_unit"),
+            trading_start_date=tsd[:10] if tsd else None,
         )
     except (httpx.HTTPError, KeyError, ValueError):
         return None

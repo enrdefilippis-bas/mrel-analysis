@@ -18,17 +18,22 @@ st.set_page_config(
     layout="wide",
 )
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "db" / "mrel.db"
+DB_DIR = Path(__file__).resolve().parent.parent / "data" / "db"
+BANK_DB_MAP = {
+    "Banco BPM": "mrel.db",
+    "Intesa Sanpaolo": "intesa.db",
+}
 HOME_PAGE = "home"
 INSTRUMENT_PAGE = "instrument_intelligence"
 OFFICIAL_PAGE = "pillar3_official"
 
 
 @st.cache_data(ttl=300)
-def load_instrument_data() -> pd.DataFrame:
-    if not DB_PATH.exists():
+def load_instrument_data(db_name: str = "mrel.db") -> pd.DataFrame:
+    db_path = DB_DIR / db_name
+    if not db_path.exists():
         return pd.DataFrame()
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(db_path))
     df = pd.read_sql("SELECT * FROM instruments", conn)
     conn.close()
 
@@ -195,18 +200,34 @@ def _render_home() -> None:
 
 def _render_instrument_page() -> None:
     st.header("Instrument Intelligence")
-    st.caption("Banco BPM scope for this release.")
-    st.caption(
-        "For the Pillar 3 reconciliation, outstanding amounts are interpreted as of 31-12-2024. "
-        "Instrument Explorer and Audit continue to show the operational dataset amounts."
-    )
 
-    instrument_df = load_instrument_data()
-    if instrument_df.empty:
-        st.warning(
-            "Instrument data is not available. Run the pipeline first to enable this page:\n\n"
-            "```bash\npython3 pipeline.py\n```"
+    available_banks = [b for b, db in BANK_DB_MAP.items() if (DB_DIR / db).exists()]
+    if not available_banks:
+        st.warning("No instrument data available. Run a pipeline first.")
+        return
+
+    selected_bank = st.selectbox(
+        "Bank",
+        available_banks,
+        index=0,
+        key="instrument_bank",
+    )
+    db_name = BANK_DB_MAP[selected_bank]
+
+    if selected_bank == "Banco BPM":
+        st.caption(
+            "For the Pillar 3 reconciliation, outstanding amounts are interpreted as of 31-12-2024. "
+            "Instrument Explorer and Audit continue to show the operational dataset amounts."
         )
+    else:
+        st.caption(
+            f"Instrument dataset for {selected_bank}. "
+            "Pillar 3 reconciliation is not yet available for this bank."
+        )
+
+    instrument_df = load_instrument_data(db_name)
+    if instrument_df.empty:
+        st.warning(f"Instrument data for {selected_bank} is empty.")
         return
 
     tab_explorer, tab_recon, tab_audit = st.tabs(
@@ -215,7 +236,10 @@ def _render_instrument_page() -> None:
     with tab_explorer:
         explorer.render(instrument_df)
     with tab_recon:
-        reconciliation.render(instrument_df)
+        if selected_bank == "Banco BPM":
+            reconciliation.render(instrument_df)
+        else:
+            st.info(f"Pillar 3 reconciliation is not yet available for {selected_bank}.")
     with tab_audit:
         audit.render(instrument_df)
 
